@@ -2,10 +2,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { showErrorToast } from '../../../lib/toast';
-import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
+import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
-import { Skeleton } from '../../../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
   useGroupSettlementsQuery,
@@ -118,11 +117,7 @@ const SettlementsPage = () => {
               </button>
             </div>
           ) : mineQuery.isLoading ? (
-            <>
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </>
+            <SkeletonList count={3} className="h-20 w-full" />
           ) : mineItems.length === 0 ? (
             <EmptyState icon="💸" title="No settlements yet" description="Your payment history will appear here." />
           ) : (
@@ -176,10 +171,7 @@ const SettlementsPage = () => {
                     </button>
                   </div>
                 ) : groupHistoryQuery.isLoading ? (
-                  <>
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                  </>
+                  <SkeletonList count={2} className="h-20 w-full" />
                 ) : groupItems.length === 0 ? (
                   <EmptyState icon="🧾" title="No settlements in this group" description="Payments recorded for this group will appear here." />
                 ) : (

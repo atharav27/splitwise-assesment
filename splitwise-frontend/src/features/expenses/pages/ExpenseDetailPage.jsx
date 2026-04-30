@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-r
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { AmountDisplay, AppShell, ConfirmDialog, UserAvatar } from '../../../components/shared';
+import { AmountDisplay, AppShell, ConfirmDialog, SkeletonList, UserAvatar } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
@@ -226,7 +226,7 @@ const ExpenseDetailPage = () => {
               {openHistory ? (
                 <div className="mt-3 space-y-2">
                   {historyQuery.isLoading ? (
-                    <Skeleton className="h-24 w-full" />
+                    <SkeletonList count={1} className="h-24 w-full" />
                   ) : !historyQuery.data?.length ? (
                     <p className="text-xs text-muted-foreground">No history available.</p>
                   ) : (

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
+import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
-import { Skeleton } from '../../../components/ui/skeleton';
 import { useExpensesListQuery, useGroupsForExpenseQuery, unwrapExpenseList } from '../../../hooks/useExpense';
 import { ExpenseCard } from '../components/ExpenseCard';
 
@@ -68,11 +67,7 @@ const ExpensesPage = () => {
           </button>
         </div>
       ) : isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-28 w-full" />
-        </div>
+        <SkeletonList count={3} className="h-28 w-full" containerClassName="space-y-3" />
       ) : expenses.length === 0 ? (
         <EmptyState
           icon="🧾"

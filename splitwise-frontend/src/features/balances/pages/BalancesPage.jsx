@@ -1,9 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { AmountDisplay, AppShell, EmptyState, PageHeader } from '../../../components/shared';
+import { AmountDisplay, AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../components/ui/accordion';
 import { Card, CardContent } from '../../../components/ui/card';
-import { Skeleton } from '../../../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -85,10 +84,7 @@ const BalancesPage = () => {
               </button>
             </div>
           ) : globalQuery.isLoading ? (
-            <>
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </>
+            <SkeletonList count={2} className="h-24 w-full" />
           ) : balances.length === 0 ? (
             <EmptyState
               icon="🎉"
@@ -108,10 +104,7 @@ const BalancesPage = () => {
 
         <TabsContent value="group">
           {groupBalancesQuery.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
+            <SkeletonList count={2} className="h-12 w-full" />
           ) : (
             <Accordion type="single" collapsible className="w-full">
               {(groupBalancesQuery.data || []).map(({ group, balances: groupBalances }) => (

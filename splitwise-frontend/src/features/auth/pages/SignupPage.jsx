@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { z } from 'zod';
 import { FormInputField } from '../../../components/form-fields';
 import { LoadingSpinner } from '../../../components/shared/LoadingSpinner';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
@@ -16,18 +15,7 @@ import {
 } from '../../../components/ui/card';
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
-
-const signupSchema = z
-  .object({
-    name: z.string().min(1, 'Full name is required'),
-    email: z.string().min(1, 'Email or ID is required'),
-    password: z.string().min(1, 'Password is required'),
-    confirmPassword: z.string().min(1, 'Confirm your password'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  });
+import { signupSchema } from '../../../schemas';
 
 const getPasswordScore = (password = '') => {
   let score = 0;

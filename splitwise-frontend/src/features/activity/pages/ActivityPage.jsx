@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
+import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
@@ -10,7 +10,6 @@ import {
 } from '../../../hooks/useActivity';
 import { showErrorToast } from '../../../lib/toast';
 import { ActivityItem } from '../components/ActivityItem';
-import { ActivityItemSkeleton } from '../components/ActivityItemSkeleton';
 
 const ActivityPage = () => {
   const [tab, setTab] = useState('mine');
@@ -69,11 +68,7 @@ const ActivityPage = () => {
               </button>
             </div>
           ) : loading ? (
-            <>
-              <ActivityItemSkeleton />
-              <ActivityItemSkeleton />
-              <ActivityItemSkeleton />
-            </>
+            <SkeletonList count={3} className="h-14 w-full" />
           ) : displayedItems.length === 0 ? (
             <EmptyState icon="📜" title="No activity yet" description="Your actions will appear here." />
           ) : (
@@ -123,10 +118,7 @@ const ActivityPage = () => {
               </button>
             </div>
           ) : loading ? (
-            <>
-              <ActivityItemSkeleton />
-              <ActivityItemSkeleton />
-            </>
+            <SkeletonList count={2} className="h-14 w-full" />
           ) : displayedItems.length === 0 ? (
             <EmptyState icon="📜" title="No activity yet" description="No group activity available." />
           ) : (

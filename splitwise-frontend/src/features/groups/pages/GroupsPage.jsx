@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
+import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
-import { Skeleton } from '../../../components/ui/skeleton';
 import { useGroupsListQuery } from '../../../hooks/useGroups';
 import { GroupCard } from '../components/GroupCard';
 
@@ -25,12 +24,7 @@ const GroupsPage = () => {
           </button>
         </div>
       ) : isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
+        <SkeletonList count={4} className="h-40 w-full" containerClassName="grid grid-cols-1 gap-4 md:grid-cols-2" />
       ) : groups.length === 0 ? (
         <EmptyState
           icon="👥"

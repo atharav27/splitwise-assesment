@@ -1,7 +1,7 @@
 import { ChevronLeft, MoreVertical, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AppShell, ConfirmDialog, EmptyState, UserAvatarGroup } from '../../../components/shared';
+import { AppShell, ConfirmDialog, EmptyState, SkeletonList, UserAvatarGroup } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import {
@@ -145,10 +145,7 @@ const GroupDetailPage = () => {
                 <Button className="w-full sm:w-auto" onClick={() => navigate(`/expenses/new?groupId=${id}`)}>Add Expense</Button>
               </div>
               {groupExpenseQuery.isLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
+                <SkeletonList count={2} className="h-16 w-full" />
               ) : groupExpenses.length === 0 ? (
                 <EmptyState icon="🧾" title="No expenses yet" description="Add your first expense for this group." />
               ) : (
@@ -169,10 +166,7 @@ const GroupDetailPage = () => {
 
             <TabsContent value="balances" className="space-y-3">
               {balancesQuery.isLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
+                <SkeletonList count={2} className="h-10 w-full" />
               ) : !balancesQuery.data?.length ? (
                 <EmptyState icon="🎉" title="All settled up" description="No outstanding balances in this group." />
               ) : (

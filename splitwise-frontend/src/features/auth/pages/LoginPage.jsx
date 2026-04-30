@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { z } from 'zod';
 import { FormInputField } from '../../../components/form-fields';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
 import { Button } from '../../../components/ui/button';
@@ -16,11 +15,7 @@ import {
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
 import { LoadingSpinner } from '../../../components/shared/LoadingSpinner';
-
-const loginSchema = z.object({
-  email: z.string().min(1, 'Email or ID is required'),
-  password: z.string().min(1, 'Password is required'),
-});
+import { loginSchema } from '../../../schemas';
 
 const LoginPage = () => {
   const navigate = useNavigate();

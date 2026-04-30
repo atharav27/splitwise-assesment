@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppShell, AmountDisplay, EmptyState } from '../components/shared';
+import { AppShell, AmountDisplay, EmptyState, SkeletonList } from '../components/shared';
 import { Card, CardContent } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
 import { useAuth } from '../context/AuthContext';
@@ -28,14 +28,6 @@ const SectionHeader = ({ title, actionLabel, onAction }) => (
     <button type="button" className="text-sm text-primary" onClick={onAction}>
       {actionLabel} →
     </button>
-  </div>
-);
-
-const SkeletonList = ({ count, className, containerClassName = 'space-y-2' }) => (
-  <div className={containerClassName}>
-    {Array.from({ length: count }).map((_, idx) => (
-      <Skeleton key={idx} className={className} />
-    ))}
   </div>
 );
 

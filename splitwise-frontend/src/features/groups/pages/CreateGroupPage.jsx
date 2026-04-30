@@ -3,7 +3,6 @@ import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
 import { FormInputField, FormSelectField, FormTextareaField } from '../../../components/form-fields';
 import { AppShell, PageHeader } from '../../../components/shared';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
@@ -12,14 +11,8 @@ import { Card, CardContent } from '../../../components/ui/card';
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
 import { useCreateGroupMutation } from '../../../hooks/useGroups';
+import { createGroupSchema } from '../../../schemas';
 import { MemberSelector } from '../components/MemberSelector';
-
-const schema = z.object({
-  name: z.string().min(1, 'Group name is required'),
-  description: z.string().max(300, 'Description must be at most 300 characters').optional(),
-  members: z.array(z.string()).min(1, 'Add at least 1 other member'),
-  currency: z.enum(['INR', 'USD', 'EUR', 'GBP']),
-});
 
 const CreateGroupPage = () => {
   const navigate = useNavigate();
@@ -28,7 +21,7 @@ const CreateGroupPage = () => {
   const [apiError, setApiError] = useState('');
 
   const form = useForm({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(createGroupSchema),
     defaultValues: {
       name: '',
       description: '',

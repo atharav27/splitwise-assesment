@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { z } from 'zod';
 import { FormInputField, FormSelectField } from '../../../components/form-fields';
 import { AppShell, PageHeader } from '../../../components/shared';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
@@ -10,6 +9,7 @@ import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
+import { expenseFormSchema } from '../../../schemas';
 import {
   useCreateExpenseMutation,
   useExpenseByIdQuery,
@@ -21,18 +21,6 @@ import { ParticipantSelector } from '../components/ParticipantSelector';
 import { ParticipantSplitRow } from '../components/ParticipantSplitRow';
 import { SplitTotalsFooter } from '../components/SplitTotalsFooter';
 import { SplitTypeSelector } from '../components/SplitTypeSelector';
-
-const schema = z.object({
-  description: z.string().min(1, 'Description is required'),
-  amount: z
-    .string()
-    .refine((value) => Number(value) > 0, 'Amount must be positive')
-    .refine((value) => /^\d+(\.\d{1,2})?$/.test(value), 'Max 2 decimal places'),
-  currency: z.string().min(1),
-  category: z.string().min(1),
-  groupId: z.string().optional(),
-  paidBy: z.string().min(1, 'Paid by is required'),
-});
 
 const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
 
@@ -71,7 +59,7 @@ const CreateEditExpensePage = () => {
   const [splitDetails, setSplitDetails] = useState([]);
 
   const form = useForm({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       description: '',
       amount: '',
