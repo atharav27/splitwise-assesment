@@ -17,8 +17,29 @@ import logger from './utils/logger';
 const app = express();
 export const SWAGGER_PATH = '/api-docs';
 
+const parseCorsOrigins = (rawOrigins?: string) =>
+  (rawOrigins || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const configuredCorsOrigins = parseCorsOrigins(process.env.CORS_ORIGIN);
+const corsAllowlist =
+  configuredCorsOrigins.length > 0 ? configuredCorsOrigins : process.env.NODE_ENV === 'development' ? ['http://localhost:5173'] : [];
+
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server and tools that don't send Origin.
+      if (!origin) return callback(null, true);
+      // If allowlist is empty, keep permissive behavior (same as previous fallback).
+      if (corsAllowlist.length === 0) return callback(null, true);
+      if (corsAllowlist.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+  })
+);
 
 app.use(pinoHttp({ logger }));
 

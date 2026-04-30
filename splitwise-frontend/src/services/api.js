@@ -1,7 +1,28 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+const normalizeApiBaseUrl = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  return /\/api$/i.test(withoutTrailingSlash) ? withoutTrailingSlash : `${withoutTrailingSlash}/api`;
+};
+
+const resolveApiBaseUrl = () => {
+  const rawUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  const normalizedUrl = normalizeApiBaseUrl(rawUrl);
+
+  if (normalizedUrl) return normalizedUrl;
+  if (import.meta.env.DEV) return 'http://localhost:5000/api';
+
+  throw new Error(
+    'Missing API base URL. Set VITE_API_BASE_URL (example: https://your-backend-domain.com/api).'
+  );
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

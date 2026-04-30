@@ -3,7 +3,7 @@ import { protect } from '../../middlewares/auth.middleware';
 import { idempotencyCheck } from '../../middlewares/idempotency.middleware';
 import { success } from '../../utils/apiResponse';
 import * as expenseService from './expense.service';
-import { createExpenseSchema, paginationSchema, updateExpenseSchema } from './expense.validator';
+import { createExpenseSchema, objectId, paginationSchema, updateExpenseSchema } from './expense.validator';
 
 const router = express.Router();
 
@@ -18,6 +18,13 @@ router.post('/', idempotencyCheck, async (req, res) => {
 router.get('/', async (req, res) => {
   const query = paginationSchema.parse(req.query);
   const result = await expenseService.getExpenses(query, req.user!.id);
+  return success(res, result, 'Expenses fetched');
+});
+
+router.get('/group/:groupId', async (req, res) => {
+  const groupId = objectId.parse(req.params.groupId);
+  const query = paginationSchema.parse(req.query);
+  const result = await expenseService.getExpenses({ ...query, groupId }, req.user!.id);
   return success(res, result, 'Expenses fetched');
 });
 
