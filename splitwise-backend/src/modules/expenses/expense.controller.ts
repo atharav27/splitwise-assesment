@@ -17,17 +17,17 @@ router.post('/', idempotencyCheck, async (req, res) => {
 
 router.get('/', async (req, res) => {
   const query = paginationSchema.parse(req.query);
-  const result = await expenseService.getExpenses(query);
+  const result = await expenseService.getExpenses(query, req.user!.id);
   return success(res, result, 'Expenses fetched');
 });
 
 router.get('/:id', async (req, res) => {
-  const expense = await expenseService.getExpenseById(req.params.id);
+  const expense = await expenseService.getExpenseByIdForRequester(req.params.id, req.user!.id);
   return success(res, expense, 'Expense fetched');
 });
 
 router.get('/:id/history', async (req, res) => {
-  const expense = await expenseService.getExpenseById(req.params.id);
+  const expense = await expenseService.getExpenseByIdForRequester(req.params.id, req.user!.id);
   return success(res, expense.history || [], 'Expense history fetched');
 });
 

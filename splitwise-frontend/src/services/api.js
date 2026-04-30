@@ -16,9 +16,6 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      if (import.meta.env.DEV && localStorage.getItem('token') === 'dev-token') {
-        return Promise.reject(err);
-      }
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -46,11 +43,14 @@ export const groupsAPI = {
 };
 
 export const expensesAPI = {
-  create: (data) => api.post('/expenses', data, {
-    headers: { 'Idempotency-Key': uuidv4() },
-  }),
+  create: (data) => {
+    const idempotencyKey = uuidv4();
+    return api.post('/expenses', data, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  },
   getAll: (params) => api.get('/expenses', { params }),
-  getByGroup: (groupId, params) => api.get(`/expenses/group/${groupId}`, { params }),
+  getByGroup: (groupId, params) => api.get('/expenses', { params: { ...params, groupId } }),
   getById: (id) => api.get(`/expenses/${id}`),
   getHistory: (id) => api.get(`/expenses/${id}/history`),
   update: (id, data) => api.put(`/expenses/${id}`, data),

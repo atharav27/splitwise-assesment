@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell, AmountDisplay, EmptyState } from '../components/shared';
 import { Card, CardContent } from '../components/ui/card';
@@ -7,7 +7,13 @@ import { useAuth } from '../context/AuthContext';
 import { BalanceRow } from '../features/balances/components/BalanceRow';
 import { ExpenseCard } from '../features/expenses/components/ExpenseCard';
 import { GroupCard } from '../features/groups/components/GroupCard';
-import { balancesAPI, expensesAPI, groupsAPI, settlementsAPI } from '../services/api';
+import {
+  useDashboardGroups,
+  useDashboardMonthlyExpenses,
+  useDashboardSettlements,
+  useGlobalBalances,
+  useRecentExpenses,
+} from '../hooks/useDashboard';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -35,7 +41,7 @@ const SkeletonList = ({ count, className, containerClassName = 'space-y-2' }) =>
 
 const QuickStatCard = ({ value, label, onClick }) => (
   <Card className="cursor-pointer" onClick={onClick}>
-    <CardContent className="p-3">
+    <CardContent className="p-3 text-center">
       <p className="text-xl font-semibold">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </CardContent>
@@ -46,30 +52,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: balances = [], isLoading: balancesLoading } = useQuery({
-    queryKey: ['balances', 'global'],
-    queryFn: () => balancesAPI.getGlobal().then((res) => res.data?.data || []),
-  });
-
-  const { data: groups = [], isLoading: groupsLoading } = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => res.data?.data || []),
-  });
-
-  const { data: recentExpenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: ['expenses', 'recent'],
-    queryFn: () => expensesAPI.getAll({ limit: 5 }).then((res) => res.data?.data || []),
-  });
-
-  const { data: allExpenses = [] } = useQuery({
-    queryKey: ['expenses', 'month-count'],
-    queryFn: () => expensesAPI.getAll({ limit: 100 }).then((res) => res.data?.data || []),
-  });
-
-  const { data: settlements = [] } = useQuery({
-    queryKey: ['settlements', 'all'],
-    queryFn: () => settlementsAPI.getAll().then((res) => res.data?.data || []),
-  });
+  const { data: balances = [], isLoading: balancesLoading } = useGlobalBalances();
+  const { data: groups = [], isLoading: groupsLoading } = useDashboardGroups();
+  const { data: recentExpenses = [], isLoading: expensesLoading } = useRecentExpenses();
+  const { data: allExpenses = [] } = useDashboardMonthlyExpenses();
+  const { data: settlements = [] } = useDashboardSettlements();
 
   const netOwed = balances
     .filter((item) => item.direction === 'owed')
@@ -88,15 +75,44 @@ const Dashboard = () => {
   }).length;
 
   const pendingSettlements = settlements.length || balances.filter((item) => Number(item.amount) > 0).length;
+  const balancesWithExpenseName = useMemo(() => {
+    const expenses = Array.isArray(recentExpenses) ? recentExpenses : [];
+    return balances.map((entry) => {
+      const matchedExpense = expenses.find((expense) =>
+        (expense.splitDetails || []).some((detail) => {
+          const detailUserId = detail?.userId?._id || detail?.userId || detail?.user?._id;
+          return detailUserId === entry.userId;
+        })
+      );
+      return {
+        ...entry,
+        expenseName: matchedExpense?.description || '',
+      };
+    });
+  }, [balances, recentExpenses]);
 
   return (
     <AppShell>
       <div className="space-y-6">
+        <div className="hidden items-start justify-between md:flex">
+          <div>
+            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Track your balances, groups, and recent activity.</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            onClick={() => navigate('/expenses/new')}
+          >
+            Add Expense
+          </button>
+        </div>
+
         {balancesLoading ? (
           <Skeleton className="h-36 w-full rounded-xl" />
         ) : (
           <Card>
-            <CardContent className="p-6 space-y-3">
+            <CardContent className="p-6 space-y-3 text-center md:text-left">
               <p className="text-sm text-muted-foreground">
                 {getGreeting()}, {user?.name?.split(' ')[0] || 'there'} 👋
               </p>
@@ -117,7 +133,7 @@ const Dashboard = () => {
                   You&apos;re all settled up 🎉
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap justify-center gap-2 pt-1 md:justify-start">
                 <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs text-emerald-700">
                   {owedCount} people owe you
                 </span>
@@ -129,7 +145,7 @@ const Dashboard = () => {
           </Card>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {groupsLoading || expensesLoading ? (
             <SkeletonList count={3} className="h-20 w-full" containerClassName="contents" />
           ) : (
@@ -195,7 +211,7 @@ const Dashboard = () => {
           ) : (
             <Card>
               <CardContent className="p-3">
-                {balances.slice(0, 3).map((entry) => (
+                {balancesWithExpenseName.slice(0, 3).map((entry) => (
                   <BalanceRow
                     key={entry.userId || entry._id || `${entry.name}-${entry.direction}`}
                     entry={entry}

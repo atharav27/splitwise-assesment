@@ -4,9 +4,9 @@ import { AuthProvider } from '../context/AuthContext';
 const queryClient = new QueryClient();
 
 export const AppProviders = ({ children }) => (
-  <AuthProvider>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
       {children}
-    </QueryClientProvider>
-  </AuthProvider>
+    </AuthProvider>
+  </QueryClientProvider>
 );

@@ -11,8 +11,7 @@ import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
-import { showErrorToast, showSuccessToast } from '../../../lib/toast';
-import { groupsAPI } from '../../../services/api';
+import { useCreateGroupMutation } from '../../../hooks/useGroups';
 import { MemberSelector } from '../components/MemberSelector';
 
 const schema = z.object({
@@ -25,6 +24,7 @@ const schema = z.object({
 const CreateGroupPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const createGroupMutation = useCreateGroupMutation();
   const [apiError, setApiError] = useState('');
 
   const form = useForm({
@@ -38,7 +38,7 @@ const CreateGroupPage = () => {
   });
 
   const description = form.watch('description') || '';
-  const isSubmitting = form.formState.isSubmitting;
+  const isSubmitting = form.formState.isSubmitting || createGroupMutation.isPending;
 
   const onSubmit = async (values) => {
     setApiError('');
@@ -49,13 +49,9 @@ const CreateGroupPage = () => {
         currency: values.currency,
         members: Array.from(new Set([...(values.members || []), user?._id].filter(Boolean))),
       };
-      const res = await groupsAPI.create(payload);
-      const groupId = res.data?.data?._id;
-      showSuccessToast('Group created');
-      navigate(groupId ? `/groups/${groupId}` : '/groups');
-    } catch (error) {
+      await createGroupMutation.mutateAsync(payload);
+    } catch {
       setApiError('Unable to create group. Please try again.');
-      showErrorToast(error);
     }
   };
 

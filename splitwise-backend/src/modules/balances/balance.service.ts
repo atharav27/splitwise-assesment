@@ -15,6 +15,7 @@ type LedgerEntry = {
   fromUser: PopulatedUser;
   toUser: PopulatedUser;
   amount: number;
+  groupId?: { toString: () => string } | string | null;
 };
 
 export const getGlobalBalances = async (userId: string) => {
@@ -30,7 +31,7 @@ export const getGroupBalances = async (groupId: string, userId: string) => {
   if (!isMember) throw new AppError('Access denied — not a group member', 403);
 
   const entries = (await balanceRepo.findGroupLedgerEntries(groupId)) as LedgerEntry[];
-  return buildGroupBalanceList(entries, memberIds, userId);
+  return buildGroupBalanceList(entries, memberIds, userId, groupId);
 };
 
 const buildBalanceList = (entries: LedgerEntry[], userId: string) => {
@@ -42,14 +43,24 @@ const buildBalanceList = (entries: LedgerEntry[], userId: string) => {
       const amount = round2(entry.amount);
 
       if (fromId === uid) {
-        return { user: entry.toUser, amount, direction: 'owe' as const };
+        return {
+          user: entry.toUser,
+          amount,
+          direction: 'owe' as const,
+          groupId: entry.groupId ? entry.groupId.toString() : null,
+        };
       }
-      return { user: entry.fromUser, amount, direction: 'owed' as const };
+      return {
+        user: entry.fromUser,
+        amount,
+        direction: 'owed' as const,
+        groupId: entry.groupId ? entry.groupId.toString() : null,
+      };
     })
     .filter((b) => b.amount > DUST_THRESHOLD);
 };
 
-const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requesterId: string) => {
+const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requesterId: string, groupId: string) => {
   const netMap: Record<string, number> = {};
   memberIds.forEach((id) => {
     netMap[id] = 0;
@@ -74,6 +85,7 @@ const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requ
         userId: id,
         amount: absNet,
         direction: net > 0 ? ('owed' as const) : ('owe' as const),
+        groupId,
       };
     })
     .filter(Boolean);

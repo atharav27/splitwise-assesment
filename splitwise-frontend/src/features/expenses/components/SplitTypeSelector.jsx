@@ -7,7 +7,7 @@ const splitTypes = [
 ];
 
 export const SplitTypeSelector = ({ value, onChange, disabled = false }) => (
-  <div className="inline-flex rounded-lg border p-1">
+  <div className="grid w-full grid-cols-3 rounded-lg border p-1">
     {splitTypes.map((type) => (
       <Button
         key={type.value}
@@ -15,6 +15,7 @@ export const SplitTypeSelector = ({ value, onChange, disabled = false }) => (
         size="sm"
         disabled={disabled}
         variant={value === type.value ? 'default' : 'ghost'}
+        className="px-2 text-xs sm:text-sm"
         onClick={() => onChange(type.value)}
       >
         {type.label}

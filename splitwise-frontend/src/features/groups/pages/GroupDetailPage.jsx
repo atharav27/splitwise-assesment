@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, MoreVertical, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -15,29 +14,27 @@ import {
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { useAuth } from '../../../context/AuthContext';
-import { showErrorToast, showSuccessToast } from '../../../lib/toast';
+import {
+  useAddGroupMemberMutation,
+  useDeleteGroupMutation,
+  useGroupBalancesQuery,
+  useGroupByIdQuery,
+  useGroupExpensesQuery,
+  useRemoveGroupMemberMutation,
+  unwrapList,
+} from '../../../hooks/useGroups';
 import { BalanceRow } from '../../balances/components/BalanceRow';
 import { ExpenseCard } from '../../expenses/components/ExpenseCard';
-import { balancesAPI, expensesAPI, groupsAPI } from '../../../services/api';
 import { MemberChip } from '../components/MemberChip';
 import { MemberSelector } from '../components/MemberSelector';
 import { OptimizedPlanCard } from '../components/OptimizedPlanCard';
 
 const validTabs = ['expenses', 'balances', 'members'];
 
-const unwrapList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.docs)) return payload.docs;
-  if (Array.isArray(payload?.expenses)) return payload.expenses;
-  return [];
-};
-
 const GroupDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = validTabs.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'expenses';
@@ -52,59 +49,19 @@ const GroupDetailPage = () => {
     return next;
   });
 
-  const groupQuery = useQuery({
-    queryKey: ['group', id],
-    queryFn: () => groupsAPI.getById(id).then((res) => res.data?.data),
-    enabled: Boolean(id),
-    retry: false,
-  });
+  const groupQuery = useGroupByIdQuery(id);
 
   const group = groupQuery.data;
-  const members = group?.members || [];
+  const members = useMemo(() => group?.members || [], [group?.members]);
   const creatorId = group?.createdBy?._id || group?.createdBy;
   const isAdmin = Boolean(user?._id && creatorId && user._id === creatorId);
 
-  const groupExpenseQuery = useQuery({
-    queryKey: ['group-expenses', id, expenseLimit],
-    queryFn: () => expensesAPI.getByGroup(id, { limit: expenseLimit }).then((res) => res.data?.data),
-    enabled: Boolean(id),
-  });
+  const groupExpenseQuery = useGroupExpensesQuery(id, expenseLimit);
+  const balancesQuery = useGroupBalancesQuery(id);
 
-  const balancesQuery = useQuery({
-    queryKey: ['group-balances', id],
-    queryFn: () => balancesAPI.getByGroup(id).then((res) => res.data?.data || []),
-    enabled: Boolean(id),
-  });
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: () => groupsAPI.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
-      showSuccessToast('Group deleted');
-      navigate('/groups');
-    },
-    onError: (error) => showErrorToast(error),
-  });
-
-  const addMemberMutation = useMutation({
-    mutationFn: (userId) => groupsAPI.addMember(id, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      setSelectedMembers([]);
-      setAddMemberOpen(false);
-      showSuccessToast('Member added to group');
-    },
-    onError: (error) => showErrorToast(error),
-  });
-
-  const removeMemberMutation = useMutation({
-    mutationFn: (userId) => groupsAPI.removeMember(id, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      showSuccessToast('Member removed');
-    },
-    onError: (error) => showErrorToast(error),
-  });
+  const deleteGroupMutation = useDeleteGroupMutation(id);
+  const addMemberMutation = useAddGroupMemberMutation(id);
+  const removeMemberMutation = useRemoveGroupMemberMutation(id);
 
   if (groupQuery.isError) {
     const status = groupQuery.error?.response?.status;
@@ -112,6 +69,24 @@ const GroupDetailPage = () => {
   }
 
   const groupExpenses = unwrapList(groupExpenseQuery.data);
+  const normalizedGroupBalances = useMemo(() => {
+    const memberMap = new Map(members.map((member) => [member._id, member]));
+    return (balancesQuery.data || []).map((entry) => {
+      const member = memberMap.get(entry.userId);
+      const matchedExpense = groupExpenses.find((expense) =>
+        (expense.splitDetails || []).some((detail) => {
+          const detailUserId = detail?.userId?._id || detail?.userId || detail?.user?._id;
+          return detailUserId === entry.userId;
+        })
+      );
+      return {
+        ...entry,
+        name: entry.name || member?.name || 'Unknown user',
+        avatar: entry.avatar || member?.avatar || null,
+        expenseName: matchedExpense?.description || '',
+      };
+    });
+  }, [balancesQuery.data, members, groupExpenses]);
   const hasMoreExpenses = useMemo(() => {
     const total = groupExpenseQuery.data?.total || groupExpenseQuery.data?.count || groupExpenseQuery.data?.totalDocs;
     return typeof total === 'number' ? groupExpenses.length < total : groupExpenses.length >= expenseLimit;
@@ -131,10 +106,10 @@ const GroupDetailPage = () => {
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <h1 className="text-2xl font-semibold">{group.name}</h1>
+              <h1 className="text-xl font-semibold sm:text-2xl">{group.name}</h1>
               <div className="flex items-center gap-3">
                 <UserAvatarGroup users={members} max={5} />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground sm:text-sm">
                   {members.length} members · {group.currency || 'INR'}
                 </p>
               </div>
@@ -159,15 +134,15 @@ const GroupDetailPage = () => {
           </div>
 
           <Tabs value={currentTab} onValueChange={onTabChange}>
-            <TabsList>
-              <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              <TabsTrigger value="balances">Balances</TabsTrigger>
-              <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsList className="h-9 w-full sm:h-10">
+              <TabsTrigger value="expenses" className="flex-1 text-xs sm:text-sm">Expenses</TabsTrigger>
+              <TabsTrigger value="balances" className="flex-1 text-xs sm:text-sm">Balances</TabsTrigger>
+              <TabsTrigger value="members" className="flex-1 text-xs sm:text-sm">Members</TabsTrigger>
             </TabsList>
 
             <TabsContent value="expenses" className="space-y-3">
               <div className="flex justify-end">
-                <Button onClick={() => navigate(`/expenses/new?groupId=${id}`)}>Add Expense</Button>
+                <Button className="w-full sm:w-auto" onClick={() => navigate(`/expenses/new?groupId=${id}`)}>Add Expense</Button>
               </div>
               {groupExpenseQuery.isLoading ? (
                 <div className="space-y-2">
@@ -203,8 +178,8 @@ const GroupDetailPage = () => {
               ) : (
                 <Card>
                   <CardContent className="p-3 space-y-1">
-                    {balancesQuery.data.map((entry) => (
-                      <BalanceRow key={`${entry.userId}-${entry.direction}`} entry={entry} />
+                    {normalizedGroupBalances.map((entry) => (
+                      <BalanceRow key={`${entry.userId}-${entry.direction}-${entry.groupId || id}`} entry={entry} />
                     ))}
                   </CardContent>
                 </Card>
@@ -261,7 +236,13 @@ const GroupDetailPage = () => {
             onConfirm={() => {
               if (!selectedMembers.length) return;
               const candidate = selectedMembers.find((memberId) => !members.some((m) => m._id === memberId));
-              if (candidate) addMemberMutation.mutate(candidate);
+              if (!candidate) return;
+              addMemberMutation.mutate(candidate, {
+                onSuccess: () => {
+                  setSelectedMembers([]);
+                  setAddMemberOpen(false);
+                },
+              });
             }}
             loading={addMemberMutation.isPending}
           />

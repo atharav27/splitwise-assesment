@@ -1,44 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Skeleton } from '../../../components/ui/skeleton';
-import { expensesAPI, groupsAPI } from '../../../services/api';
+import { useExpensesListQuery, useGroupsForExpenseQuery, unwrapExpenseList } from '../../../hooks/useExpense';
 import { ExpenseCard } from '../components/ExpenseCard';
 
 const categories = ['all', 'food', 'travel', 'utilities', 'entertainment', 'other'];
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.items)) return value.items;
-  if (Array.isArray(value?.docs)) return value.docs;
-  if (Array.isArray(value?.expenses)) return value.expenses;
-  return [];
-};
 
 const ExpensesPage = () => {
   const navigate = useNavigate();
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const { data: groups = [] } = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => toArray(res.data?.data)),
-  });
+  const { data: groups = [] } = useGroupsForExpenseQuery();
 
-  const { data: expensesData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['expenses', selectedGroup, selectedCategory],
-    queryFn: () => {
-      const params = {};
-      if (selectedCategory !== 'all') params.category = selectedCategory;
-      if (selectedGroup !== 'all') params.groupId = selectedGroup;
-      return expensesAPI.getAll(params).then((res) => res.data?.data);
-    },
-  });
+  const params = {};
+  if (selectedCategory !== 'all') params.category = selectedCategory;
+  if (selectedGroup !== 'all') params.groupId = selectedGroup;
+  const { data: expensesData, isLoading, isError, refetch } = useExpensesListQuery(params);
 
-  const expenses = useMemo(() => toArray(expensesData), [expensesData]);
+  const expenses = useMemo(() => unwrapExpenseList(expensesData), [expensesData]);
 
   return (
     <AppShell>
@@ -47,9 +30,9 @@ const ExpensesPage = () => {
         action={<Button onClick={() => navigate('/expenses/new')}>Add Expense</Button>}
       />
 
-      <div className="mb-4 flex gap-3 overflow-x-auto pb-1">
+      <div className="mb-4 space-y-3">
         <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-          <SelectTrigger className="w-48 shrink-0">
+          <SelectTrigger className="w-full sm:w-60">
             <SelectValue placeholder="All Groups" />
           </SelectTrigger>
           <SelectContent>
@@ -62,17 +45,19 @@ const ExpensesPage = () => {
           </SelectContent>
         </Select>
 
-        {categories.map((category) => (
-          <Button
-            key={category}
-            type="button"
-            variant={selectedCategory === category ? 'default' : 'outline'}
-            className="capitalize shrink-0"
-            onClick={() => setSelectedCategory(category)}
-          >
-            {category}
-          </Button>
-        ))}
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <Button
+              key={category}
+              type="button"
+              variant={selectedCategory === category ? 'default' : 'outline'}
+              className="h-9 capitalize px-3"
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {isError ? (

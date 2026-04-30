@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { showErrorToast } from '../../../lib/toast';
@@ -7,16 +7,15 @@ import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { groupsAPI, settlementsAPI } from '../../../services/api';
+import {
+  useGroupSettlementsQuery,
+  useMySettlementsQuery,
+  useOptimizedSettlementsQuery,
+  useSettlementGroupsQuery,
+} from '../../../hooks/useSettlements';
 import { SettleUpDialog } from '../../balances/components/SettleUpDialog';
 import { OptimizedPlanCard } from '../components/OptimizedPlanCard';
 import { SettlementCard } from '../components/SettlementCard';
-
-const toListWithCursor = (payload) => {
-  const items = Array.isArray(payload) ? payload : payload?.items || payload?.docs || payload?.settlements || [];
-  const nextCursor = payload?.nextCursor ?? null;
-  return { items, nextCursor };
-};
 
 const SettlementsPage = () => {
   const queryClient = useQueryClient();
@@ -32,29 +31,13 @@ const SettlementsPage = () => {
   const [groupNextCursor, setGroupNextCursor] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => res.data?.data || []),
-  });
+  const groupsQuery = useSettlementGroupsQuery();
 
-  const mineQuery = useQuery({
-    queryKey: ['settlements', 'all', mineCursor],
-    queryFn: () => settlementsAPI.getAll({ cursor: mineCursor }).then((res) => toListWithCursor(res.data?.data)),
-  });
+  const mineQuery = useMySettlementsQuery(mineCursor);
 
-  const groupHistoryQuery = useQuery({
-    queryKey: ['settlements', 'group', groupId, groupCursor],
-    enabled: groupId !== 'all',
-    retry: false,
-    queryFn: () => settlementsAPI.getByGroup(groupId, { cursor: groupCursor }).then((res) => toListWithCursor(res.data?.data)),
-  });
+  const groupHistoryQuery = useGroupSettlementsQuery(groupId, groupCursor, groupId !== 'all');
 
-  const optimizedQuery = useQuery({
-    queryKey: ['settlements', 'optimized', groupId],
-    enabled: groupId !== 'all',
-    retry: false,
-    queryFn: () => settlementsAPI.getOptimized(groupId).then((res) => res.data?.data || []),
-  });
+  const optimizedQuery = useOptimizedSettlementsQuery(groupId, groupId !== 'all');
 
   useEffect(() => {
     if (!mineQuery.data) return;

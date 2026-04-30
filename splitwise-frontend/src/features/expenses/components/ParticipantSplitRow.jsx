@@ -12,6 +12,7 @@ export const ParticipantSplitRow = ({
   onRemove,
   canRemove = true,
   currency = 'INR',
+  inputsDisabled = false,
 }) => {
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-md border p-2">
@@ -32,6 +33,7 @@ export const ParticipantSplitRow = ({
             step="0.01"
             className="w-28"
             value={amount}
+            disabled={inputsDisabled}
             onChange={(e) => onAmountChange(e.target.value)}
           />
           <span className="text-xs text-muted-foreground">{(percentage || 0).toFixed(1)}%</span>
@@ -47,6 +49,7 @@ export const ParticipantSplitRow = ({
             step="0.01"
             className="w-24"
             value={percentage}
+            disabled={inputsDisabled}
             onChange={(e) => onPercentageChange(e.target.value)}
           />
           <span className="text-xs text-muted-foreground">{formatCurrency(amount || 0, currency)}</span>

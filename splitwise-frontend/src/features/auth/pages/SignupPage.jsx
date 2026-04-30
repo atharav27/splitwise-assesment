@@ -66,7 +66,7 @@ const PasswordStrengthBar = ({ password }) => {
 
 const SignupPage = () => {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, loading } = useAuth();
   const [apiError, setApiError] = useState('');
 
   const form = useForm({
@@ -81,6 +81,7 @@ const SignupPage = () => {
 
   const password = form.watch('password');
   const { isSubmitting } = form.formState;
+  const isAuthLoading = isSubmitting || loading;
 
   const onSubmit = async (values) => {
     setApiError('');
@@ -116,7 +117,7 @@ const SignupPage = () => {
                 name="name"
                 label="Full Name"
                 placeholder="Alex Johnson"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
               <FormInputField
                 control={form.control}
@@ -124,7 +125,7 @@ const SignupPage = () => {
                 label="Email"
                 type="email"
                 placeholder="you@example.com"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
               <FormInputField
                 control={form.control}
@@ -133,7 +134,7 @@ const SignupPage = () => {
                 type="password"
                 showToggle
                 placeholder="Create a password"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
               <PasswordStrengthBar password={password} />
               <FormInputField
@@ -143,7 +144,7 @@ const SignupPage = () => {
                 type="password"
                 showToggle
                 placeholder="Confirm your password"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
 
               {apiError ? (
@@ -152,8 +153,8 @@ const SignupPage = () => {
                 </Alert>
               ) : null}
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
+              <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                {isAuthLoading ? (
                   <span className="inline-flex items-center gap-2">
                     <LoadingSpinner size="sm" className="min-h-0" />
                     Creating account...

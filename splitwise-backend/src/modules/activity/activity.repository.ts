@@ -26,7 +26,12 @@ export const findByUser = (userId: string, cursor: string | undefined, limit: nu
     ...(cursor ? { _id: { $lt: cursor } } : {}),
   };
 
-  return Activity.find(filter).sort({ _id: -1 }).limit(limit + 1).lean();
+  return Activity.find(filter)
+    .populate('userId', '_id name email avatar')
+    .populate('groupId', '_id name')
+    .sort({ _id: -1 })
+    .limit(limit + 1)
+    .lean();
 };
 
 export const findByGroup = (groupId: string, cursor: string | undefined, limit: number) => {
@@ -35,5 +40,10 @@ export const findByGroup = (groupId: string, cursor: string | undefined, limit: 
     ...(cursor ? { _id: { $lt: cursor } } : {}),
   };
 
-  return Activity.find(filter).sort({ _id: -1 }).limit(limit + 1).lean();
+  return Activity.find(filter)
+    .populate('userId', '_id name email avatar')
+    .populate('groupId', '_id name')
+    .sort({ _id: -1 })
+    .limit(limit + 1)
+    .lean();
 };

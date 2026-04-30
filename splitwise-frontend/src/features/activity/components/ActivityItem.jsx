@@ -13,26 +13,26 @@ const actionIconMap = {
 };
 
 const getActivityText = (item) => {
-  const actor = item.actorName || item.actor?.name || 'Someone';
-  const target = item.targetName || item.target?.name || 'user';
-  const entity = item.entity || {};
-  const groupName = item.groupName || item.group?.name;
+  const actor = item.actorName || item.actor?.name || item.userId?.name || 'Someone';
+  const target = item.targetName || item.target?.name || item.metadata?.userName || 'user';
+  const metadata = item.metadata || {};
+  const groupName = item.groupName || item.group?.name || item.groupId?.name;
 
   switch (item.action) {
     case 'expense.created':
-      return { prefix: `${actor} added "${entity.description || 'expense'}"`, amount: entity.amount };
+      return { prefix: `${actor} added "${metadata.description || 'expense'}"`, amount: metadata.amount };
     case 'expense.updated':
-      return { prefix: `${actor} updated "${entity.description || 'expense'}"`, amount: entity.amount };
+      return { prefix: `${actor} updated "${metadata.description || 'expense'}"`, amount: metadata.amount };
     case 'expense.deleted':
-      return { prefix: `${actor} deleted "${entity.description || 'expense'}"` };
+      return { prefix: `${actor} deleted "${metadata.description || 'expense'}"` };
     case 'settlement.paid':
-      return { prefix: `${actor} paid ${target}`, amount: entity.amount };
+      return { prefix: `${actor} paid ${target}`, amount: metadata.amount };
     case 'group.created':
-      return { prefix: `${actor} created "${entity.name || groupName || 'group'}"` };
+      return { prefix: `${actor} created "${metadata.name || groupName || 'group'}"` };
     case 'member.added':
-      return { prefix: `${actor} added ${target} to "${groupName || entity.name || 'group'}"` };
+      return { prefix: `${actor} added ${target} to "${groupName || metadata.name || 'group'}"` };
     case 'member.removed':
-      return { prefix: `${actor} removed ${target} from "${groupName || entity.name || 'group'}"` };
+      return { prefix: `${actor} removed ${target} from "${groupName || metadata.name || 'group'}"` };
     default:
       return { prefix: `${actor} did an activity` };
   }
@@ -55,7 +55,10 @@ export const ActivityItem = ({ item, isLast = false }) => {
       <div className="flex flex-1 items-start justify-between gap-2 pb-4">
         <div className="min-w-0">
           <div className="flex items-start gap-2">
-            <UserAvatar user={item.actor || { name: item.actorName || 'User' }} size="sm" />
+            <UserAvatar
+              user={item.actor || item.userId || { name: item.actorName || item.userId?.name || 'User' }}
+              size="sm"
+            />
             <div>
               <p className="text-sm">
                 {text.prefix}
@@ -63,8 +66,8 @@ export const ActivityItem = ({ item, isLast = false }) => {
                   <span className="amount ml-1">({formatCurrency(text.amount, item.currency || 'INR')})</span>
                 ) : null}
               </p>
-              {(item.groupName || item.group?.name) ? (
-                <p className="text-xs text-muted-foreground">{item.groupName || item.group?.name}</p>
+              {(item.groupName || item.group?.name || item.groupId?.name) ? (
+                <p className="text-xs text-muted-foreground">{item.groupName || item.group?.name || item.groupId?.name}</p>
               ) : null}
             </div>
           </div>

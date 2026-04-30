@@ -1,19 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { activityAPI, groupsAPI } from '../../../services/api';
+import {
+  useActivityGroupsQuery,
+  useGroupActivityQuery,
+  useMyActivityQuery,
+} from '../../../hooks/useActivity';
 import { showErrorToast } from '../../../lib/toast';
 import { ActivityItem } from '../components/ActivityItem';
 import { ActivityItemSkeleton } from '../components/ActivityItemSkeleton';
-
-const toListWithCursor = (payload) => {
-  const items = Array.isArray(payload) ? payload : payload?.items || payload?.docs || payload?.activities || [];
-  const nextCursor = payload?.nextCursor ?? null;
-  return { items, nextCursor };
-};
 
 const ActivityPage = () => {
   const [tab, setTab] = useState('mine');
@@ -25,22 +22,9 @@ const ActivityPage = () => {
   const [mineNextCursor, setMineNextCursor] = useState(null);
   const [groupNextCursor, setGroupNextCursor] = useState(null);
 
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => res.data?.data || []),
-  });
-
-  const mineQuery = useQuery({
-    queryKey: ['activity', 'mine', mineCursor],
-    queryFn: () => activityAPI.getMine({ cursor: mineCursor }).then((res) => toListWithCursor(res.data?.data)),
-  });
-
-  const groupQuery = useQuery({
-    queryKey: ['activity', 'group', groupId, groupCursor],
-    enabled: groupId !== 'all',
-    queryFn: () => activityAPI.getByGroup(groupId, { cursor: groupCursor }).then((res) => toListWithCursor(res.data?.data)),
-    retry: false,
-  });
+  const groupsQuery = useActivityGroupsQuery();
+  const mineQuery = useMyActivityQuery(mineCursor);
+  const groupQuery = useGroupActivityQuery(groupId, groupCursor, groupId !== 'all');
 
   useEffect(() => {
     if (!mineQuery.data) return;

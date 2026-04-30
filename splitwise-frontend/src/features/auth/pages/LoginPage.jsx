@@ -24,7 +24,7 @@ const loginSchema = z.object({
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
   const [apiError, setApiError] = useState('');
 
   const form = useForm({
@@ -55,6 +55,7 @@ const LoginPage = () => {
   };
 
   const { isSubmitting } = form.formState;
+  const isAuthLoading = isSubmitting || loading;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
@@ -73,7 +74,7 @@ const LoginPage = () => {
                 label="Email"
                 type="email"
                 placeholder="you@example.com"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
               <FormInputField
                 control={form.control}
@@ -82,7 +83,7 @@ const LoginPage = () => {
                 type="password"
                 showToggle
                 placeholder="Enter your password"
-                disabled={isSubmitting}
+                disabled={isAuthLoading}
               />
               <div className="text-right">
                 <span className="text-sm text-muted-foreground cursor-not-allowed">
@@ -96,8 +97,8 @@ const LoginPage = () => {
                 </Alert>
               ) : null}
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
+              <Button type="submit" className="w-full" disabled={isAuthLoading}>
+                {isAuthLoading ? (
                   <span className="inline-flex items-center gap-2">
                     <LoadingSpinner size="sm" className="min-h-0" />
                     Signing in...

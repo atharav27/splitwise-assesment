@@ -1,15 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AmountDisplay, AppShell, ConfirmDialog, UserAvatar } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { useAuth } from '../../../context/AuthContext';
+import {
+  useDeleteExpenseMutation,
+  useExpenseByIdQuery,
+  useExpenseHistoryQuery,
+} from '../../../hooks/useExpense';
+import { useGlobalBalancesQuery } from '../../../hooks/usebalance';
 import { formatCurrency, formatDate } from '../../../lib/utils';
-import { showErrorToast, showSuccessToast } from '../../../lib/toast';
-import { expensesAPI } from '../../../services/api';
+import { SettleUpDialog } from '../../balances/components/SettleUpDialog';
 
 const categoryIcon = {
   food: '🍕',
@@ -30,33 +35,19 @@ const snapshotSummary = (snapshot = {}) => [
 
 const ExpenseDetailPage = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
   const queryClient = useQueryClient();
+  const { id } = useParams();
   const { user } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
   const [expandedHistory, setExpandedHistory] = useState({});
+  const [selectedSettlementEntry, setSelectedSettlementEntry] = useState(null);
 
-  const expenseQuery = useQuery({
-    queryKey: ['expense', id],
-    queryFn: () => expensesAPI.getById(id).then((res) => res.data?.data),
-    enabled: Boolean(id),
-  });
-
-  const historyQuery = useQuery({
-    queryKey: ['expense', id, 'history'],
-    queryFn: () => expensesAPI.getHistory(id).then((res) => res.data?.data || []),
-    enabled: Boolean(id) && openHistory,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => expensesAPI.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      showSuccessToast('Expense deleted');
-      navigate('/expenses');
-    },
-    onError: (error) => showErrorToast(error),
+  const expenseQuery = useExpenseByIdQuery(id);
+  const historyQuery = useExpenseHistoryQuery(id, openHistory);
+  const globalBalancesQuery = useGlobalBalancesQuery();
+  const deleteMutation = useDeleteExpenseMutation(id, {
+    onSuccessNavigate: () => navigate('/expenses'),
   });
 
   const expense = expenseQuery.data;
@@ -64,6 +55,48 @@ const ExpenseDetailPage = () => {
     const paidById = expense?.paidBy?._id || expense?.paidBy;
     return Boolean(user?._id && paidById && user._id === paidById);
   }, [expense, user]);
+  const payer = expense?.paidBy || null;
+  const payerId = payer?._id || payer;
+  const expenseGroupId = expense?.groupId?._id || expense?.groupId || null;
+  const liveBalances = useMemo(() => globalBalancesQuery.data || [], [globalBalancesQuery.data]);
+  const owesSummary = useMemo(
+    () =>
+      (expense?.splitDetails || [])
+        .map((item, idx) => {
+          const debtor = item.userId || item.user || null;
+          const debtorId = debtor?._id || debtor;
+          const debtAmount = Number(item.amount || 0);
+          if (!debtorId || !payerId || debtorId === payerId || debtAmount <= 0) return null;
+          const matchingLiveDebt = liveBalances.find((balance) => {
+            const balanceGroupId = balance?.groupId || null;
+            return (
+              balance?.direction === 'owe'
+              && balance?.userId === payerId
+              && balanceGroupId === expenseGroupId
+            );
+          });
+          const liveOutstanding = Number(matchingLiveDebt?.amount || 0);
+          const canSettleNow = liveOutstanding > 0;
+          return {
+            id: `${debtorId}-${idx}`,
+            debtorId,
+            debtorName: debtor?.name || debtor?.email || `Participant ${idx + 1}`,
+            creditorId: payerId,
+            creditorName: payer?.name || 'Payer',
+            amount: canSettleNow ? liveOutstanding : 0,
+            originalAmount: debtAmount,
+            canSettleNow,
+          };
+        })
+        .filter(Boolean),
+    [expense?.splitDetails, payer, payerId, liveBalances, expenseGroupId]
+  );
+
+  const refreshRelatedQueries = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['balances'] });
+    await queryClient.invalidateQueries({ queryKey: ['settlements'] });
+    await queryClient.invalidateQueries({ queryKey: ['activity'] });
+  };
 
   if (expenseQuery.isLoading) {
     return (
@@ -139,6 +172,47 @@ const ExpenseDetailPage = () => {
               </div>
             </div>
 
+            <div>
+              <p className="text-sm font-medium mb-2">Who owes whom</p>
+              {owesSummary.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No outstanding shares for this expense.</p>
+              ) : (
+                <div className="space-y-2 rounded-md border p-3">
+                  {owesSummary.map((entry) => {
+                    const canSettle = user?._id && user._id === entry.debtorId;
+                    const creditorLabel = user?._id && user._id === entry.creditorId ? 'you' : entry.creditorName;
+                    return (
+                      <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span>
+                          {entry.debtorName} owes {creditorLabel}{' '}
+                          {formatCurrency(entry.canSettleNow ? entry.amount : entry.originalAmount, expense.currency || 'INR')}
+                        </span>
+                        {canSettle && entry.canSettleNow ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setSelectedSettlementEntry({
+                                userId: entry.creditorId,
+                                name: entry.creditorName,
+                                amount: entry.amount,
+                                groupId: expense.groupId?._id || expense.groupId || null,
+                              })
+                            }
+                          >
+                            Settle Up
+                          </Button>
+                        ) : canSettle ? (
+                          <span className="text-xs text-muted-foreground">Settled</span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="border-t pt-4">
               <button
                 type="button"
@@ -194,6 +268,16 @@ const ExpenseDetailPage = () => {
           description="This will permanently remove the expense."
           onConfirm={() => deleteMutation.mutate()}
           loading={deleteMutation.isPending}
+        />
+
+        <SettleUpDialog
+          open={Boolean(selectedSettlementEntry)}
+          onOpenChange={(next) => {
+            if (!next) setSelectedSettlementEntry(null);
+          }}
+          entry={selectedSettlementEntry}
+          currentUserId={user?._id}
+          onSuccess={refreshRelatedQueries}
         />
       </div>
     </AppShell>

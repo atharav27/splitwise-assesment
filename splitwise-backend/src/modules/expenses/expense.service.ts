@@ -46,6 +46,7 @@ export const createExpense = async (
         category,
         splitType,
         splitDetails: computedSplits,
+        idempotencyKey: idempotencyKey || undefined,
       },
       session
     );
@@ -86,10 +87,23 @@ export const createExpense = async (
   return expense;
 };
 
-export const getExpenses = async (query: ExpensePaginationInput) => {
+export const getExpenses = async (query: ExpensePaginationInput, requesterId: string) => {
   const { page, limit, groupId, category } = query;
-  const filter: Record<string, unknown> = { isDeleted: false };
-  if (groupId) filter.groupId = groupId;
+  const requesterGroupIds = await getRequesterGroupIds(requesterId);
+  const baseVisibilityFilter: Record<string, unknown> = {
+    $or: [
+      { groupId: null, $or: [{ paidBy: requesterId }, { 'splitDetails.userId': requesterId }] },
+      { groupId: { $in: requesterGroupIds } },
+    ],
+  };
+
+  const filter: Record<string, unknown> = { isDeleted: false, ...baseVisibilityFilter };
+  if (groupId) {
+    if (!requesterGroupIds.includes(groupId.toString())) {
+      return { expenses: [], pagination: buildPageMeta(0, page, limit) };
+    }
+    filter.groupId = groupId;
+  }
   if (category) filter.category = category;
 
   const [expenses, total] = await Promise.all([
@@ -103,6 +117,12 @@ export const getExpenses = async (query: ExpensePaginationInput) => {
 export const getExpenseById = async (id: string) => {
   const expense = await expenseRepo.findById(id);
   if (!expense) throw new AppError('Expense not found', 404);
+  return expense;
+};
+
+export const getExpenseByIdForRequester = async (id: string, requesterId: string) => {
+  const expense = await getExpenseById(id);
+  await assertCanAccessExpense(expense as ExpenseDocLike, requesterId);
   return expense;
 };
 
@@ -233,6 +253,27 @@ const assertCanModify = (expense: ExpenseDocLike, userId: string) => {
   if (toIdString(expense.paidBy) !== userId.toString()) {
     throw new AppError('Only the payer can modify this expense', 403);
   }
+};
+
+const assertCanAccessExpense = async (expense: ExpenseDocLike, requesterId: string) => {
+  const requester = requesterId.toString();
+  const expenseGroupId = expense.groupId ? toIdString(expense.groupId) : null;
+  if (expenseGroupId) {
+    const isMember = await groupRepo.isActiveGroupMember(expenseGroupId, requester);
+    if (!isMember) throw new AppError('Access denied', 403);
+    return;
+  }
+
+  const paidById = toIdString(expense.paidBy);
+  if (paidById === requester) return;
+
+  const isParticipant = expense.splitDetails.some((detail) => toIdString(detail.userId) === requester);
+  if (!isParticipant) throw new AppError('Access denied', 403);
+};
+
+const getRequesterGroupIds = async (requesterId: string) => {
+  const groups = (await groupRepo.findByMember(requesterId)) as Array<{ _id: { toString: () => string } }>;
+  return groups.map((group) => group._id.toString());
 };
 
 const assertUsersExist = async (userIds: string[]) => {

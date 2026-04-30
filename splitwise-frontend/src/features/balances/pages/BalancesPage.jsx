@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { AmountDisplay, AppShell, EmptyState, PageHeader } from '../../../components/shared';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../../components/ui/accordion';
@@ -6,44 +6,22 @@ import { Card, CardContent } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { useAuth } from '../../../context/AuthContext';
-import { balancesAPI, groupsAPI } from '../../../services/api';
+import {
+  useBalanceGroupsQuery,
+  useGlobalBalancesQuery,
+  useGroupedBalancesQuery,
+} from '../../../hooks/usebalance';
 import { BalanceSummaryCard } from '../components/BalanceSummaryCard';
 import { SettleUpDialog } from '../components/SettleUpDialog';
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.items)) return value.items;
-  if (Array.isArray(value?.docs)) return value.docs;
-  if (Array.isArray(value?.balances)) return value.balances;
-  return [];
-};
 
 const BalancesPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedEntry, setSelectedEntry] = useState(null);
 
-  const globalQuery = useQuery({
-    queryKey: ['balances', 'global'],
-    queryFn: () => balancesAPI.getGlobal().then((res) => toArray(res.data?.data)),
-  });
-
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => toArray(res.data?.data)),
-  });
-
-  const groupBalancesQuery = useQuery({
-    queryKey: ['balances', 'grouped', (groupsQuery.data || []).map((g) => g._id).join(',')],
-    enabled: Boolean(groupsQuery.data?.length),
-    queryFn: async () => {
-      const pairs = await Promise.all((groupsQuery.data || []).map(async (group) => {
-        const data = await balancesAPI.getByGroup(group._id).then((res) => toArray(res.data?.data));
-        return { group, balances: data };
-      }));
-      return pairs;
-    },
-  });
+  const globalQuery = useGlobalBalancesQuery();
+  const groupsQuery = useBalanceGroupsQuery();
+  const groupBalancesQuery = useGroupedBalancesQuery(groupsQuery.data || []);
 
   const balances = useMemo(() => globalQuery.data || [], [globalQuery.data]);
 
@@ -120,7 +98,7 @@ const BalancesPage = () => {
           ) : (
             balances.map((entry, idx) => (
               <BalanceSummaryCard
-                key={`${entry.userId || entry._id || idx}-${entry.direction}`}
+                key={`${entry.userId || entry._id || idx}-${entry.direction}-${entry.groupId || 'personal'}`}
                 entry={entry}
                 onSettleClick={setSelectedEntry}
               />

@@ -8,7 +8,12 @@ export const BalanceRow = ({ entry }) => {
     <div className="flex items-center justify-between gap-3 py-2">
       <div className="flex min-w-0 items-center gap-3">
         <UserAvatar user={{ name: entry.name, avatar: entry.avatar }} size="sm" />
-        <p className="truncate text-sm font-medium">{entry.name}</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{entry.name}</p>
+          {entry.expenseName ? (
+            <p className="truncate text-xs text-muted-foreground">{entry.expenseName}</p>
+          ) : null}
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">

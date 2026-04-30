@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -11,8 +10,13 @@ import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Form } from '../../../components/ui/form';
 import { useAuth } from '../../../context/AuthContext';
-import { expensesAPI, groupsAPI, usersAPI } from '../../../services/api';
-import { showErrorToast, showSuccessToast } from '../../../lib/toast';
+import {
+  useCreateExpenseMutation,
+  useExpenseByIdQuery,
+  useGroupsForExpenseQuery,
+  useUpdateExpenseMutation,
+  useUsersForExpenseQuery,
+} from '../../../hooks/useExpense';
 import { ParticipantSelector } from '../components/ParticipantSelector';
 import { ParticipantSplitRow } from '../components/ParticipantSplitRow';
 import { SplitTotalsFooter } from '../components/SplitTotalsFooter';
@@ -29,14 +33,6 @@ const schema = z.object({
   groupId: z.string().optional(),
   paidBy: z.string().min(1, 'Paid by is required'),
 });
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.items)) return value.items;
-  if (Array.isArray(value?.docs)) return value.docs;
-  if (Array.isArray(value?.users)) return value.users;
-  return [];
-};
 
 const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
 
@@ -55,6 +51,12 @@ const recalcEqual = (participantIds, amount) => {
 
 const categoryOptions = ['food', 'travel', 'utilities', 'entertainment', 'other'];
 const currencyOptions = ['INR', 'USD', 'EUR', 'GBP'];
+const toGroupIdValue = (group) => {
+  if (!group) return 'none';
+  if (typeof group === 'string') return group;
+  if (group?._id) return group._id;
+  return 'none';
+};
 
 const CreateEditExpensePage = () => {
   const navigate = useNavigate();
@@ -80,29 +82,30 @@ const CreateEditExpensePage = () => {
     },
   });
 
-  const groupsQuery = useQuery({
-    queryKey: ['groups', 'all'],
-    queryFn: () => groupsAPI.getAll().then((res) => toArray(res.data?.data)),
+  const groupsQuery = useGroupsForExpenseQuery();
+  const usersQuery = useUsersForExpenseQuery();
+  const expenseQuery = useExpenseByIdQuery(id, { enabled: isEdit });
+  const createExpenseMutation = useCreateExpenseMutation({
+    onSuccessNavigate: (response) => {
+      const expenseId = response?.data?.data?._id;
+      if (expenseId) navigate(`/expenses/${expenseId}`);
+    },
   });
-
-  const usersQuery = useQuery({
-    queryKey: ['users', 'all'],
-    queryFn: () => usersAPI.getAll().then((res) => toArray(res.data?.data)),
-  });
-
-  const expenseQuery = useQuery({
-    queryKey: ['expense', id],
-    enabled: isEdit,
-    queryFn: () => expensesAPI.getById(id).then((res) => res.data?.data),
+  const updateExpenseMutation = useUpdateExpenseMutation(id, {
+    onSuccessNavigate: () => navigate(`/expenses/${id}`),
   });
 
   const watchedAmount = useWatch({ control: form.control, name: 'amount' });
   const watchedCurrency = useWatch({ control: form.control, name: 'currency' });
   const selectedGroupId = useWatch({ control: form.control, name: 'groupId' });
   const amount = Number(watchedAmount || 0);
+  const hasValidExpenseAmount = amount > 0;
+  const isCustomSplitType = splitType === 'unequal' || splitType === 'percentage';
+  const customSplitLocked = isCustomSplitType && !hasValidExpenseAmount;
   const groups = useMemo(() => groupsQuery.data || [], [groupsQuery.data]);
   const users = useMemo(() => usersQuery.data || [], [usersQuery.data]);
   const selectedGroup = groups.find((group) => group._id === selectedGroupId);
+  const initialExpenseGroupId = useMemo(() => toGroupIdValue(expenseQuery.data?.groupId), [expenseQuery.data?.groupId]);
   const groupMembers = useMemo(() => selectedGroup?.members || [], [selectedGroup]);
 
   const participantPool = useMemo(() => {
@@ -141,7 +144,7 @@ const CreateEditExpensePage = () => {
       amount: String(expense.amount || ''),
       currency: expense.currency || 'INR',
       category: expense.category || 'food',
-      groupId: expense.groupId?._id || expense.groupId || 'none',
+      groupId: toGroupIdValue(expense.groupId),
       paidBy: expense.paidBy?._id || expense.paidBy || '',
     });
 
@@ -159,48 +162,53 @@ const CreateEditExpensePage = () => {
     setSplitType(expense.splitType || 'equal');
   }, [expenseQuery.data, form, isEdit]);
 
-  const submitMutation = useMutation({
-    mutationFn: (payload) => {
-      if (isEdit) return expensesAPI.update(id, payload);
-      return expensesAPI.create(payload);
-    },
-    onSuccess: (res) => {
-      const expenseId = isEdit ? id : res.data?.data?._id;
-      showSuccessToast(isEdit ? 'Expense updated successfully' : 'Expense added successfully');
-      navigate(`/expenses/${expenseId}`);
-    },
-    onError: (error) => {
-      setApiError('Unable to save expense. Please try again.');
-      showErrorToast(error);
-    },
-  });
-
   const sumAmount = splitDetails.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const sumPercentage = splitDetails.reduce((sum, item) => sum + Number(item.percentage || 0), 0);
   const canSubmitSplit =
-    splitType === 'equal'
+    !customSplitLocked && splitType === 'equal'
       ? participantIds.length > 0
       : splitType === 'unequal'
-        ? Math.abs(sumAmount - amount) < 0.01
-        : Math.abs(sumPercentage - 100) < 0.01;
+        ? hasValidExpenseAmount && Math.abs(sumAmount - amount) < 0.01
+        : hasValidExpenseAmount && Math.abs(sumPercentage - 100) < 0.01;
+
+  const handleSplitTypeChange = (nextSplitType) => {
+    if ((nextSplitType === 'unequal' || nextSplitType === 'percentage') && !hasValidExpenseAmount) {
+      setApiError('Enter total expense amount before using Unequal or Percentage split.');
+      return;
+    }
+    setApiError('');
+    setSplitType(nextSplitType);
+  };
 
   const onSubmit = (values) => {
     if (!canSubmitSplit) return;
     setApiError('');
-    submitMutation.mutate({
+    const resolvedGroupId =
+      values.groupId === 'none'
+        ? null
+        : values.groupId || (isEdit && initialExpenseGroupId !== 'none' ? initialExpenseGroupId : null);
+    const payload = {
       description: values.description,
       amount: Number(values.amount),
       currency: values.currency,
       category: values.category,
-      groupId: values.groupId === 'none' ? null : values.groupId,
+      groupId: resolvedGroupId,
       paidBy: values.paidBy,
       splitType,
       participants: participantIds,
       splitDetails,
+    };
+
+    const mutation = isEdit ? updateExpenseMutation : createExpenseMutation;
+    mutation.mutate(payload, {
+      onError: () => {
+        setApiError('Unable to save expense. Please try again.');
+      },
     });
   };
 
   const updateUnequalAmount = (userId, inputValue) => {
+    if (!hasValidExpenseAmount) return;
     const nextAmount = round2(Number(inputValue || 0));
     const next = splitDetails.map((item) => item.userId === userId ? { ...item, amount: nextAmount } : item);
     const total = next.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -211,6 +219,7 @@ const CreateEditExpensePage = () => {
   };
 
   const updatePercentage = (userId, inputValue) => {
+    if (!hasValidExpenseAmount) return;
     const nextPercent = round2(Number(inputValue || 0));
     const next = splitDetails.map((item) => item.userId === userId ? { ...item, percentage: nextPercent } : item);
     setSplitDetails(next.map((item) => ({
@@ -242,7 +251,7 @@ const CreateEditExpensePage = () => {
                 name="description"
                 label="Description"
                 placeholder="Dinner at Mainland China"
-                disabled={submitMutation.isPending}
+                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
               />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FormInputField
@@ -251,14 +260,14 @@ const CreateEditExpensePage = () => {
                   label="Amount"
                   type="number"
                   placeholder="600.00"
-                  disabled={submitMutation.isPending}
+                  disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
                 />
                 <FormSelectField
                   control={form.control}
                   name="currency"
                   label="Currency"
                   options={currencyOptions}
-                  disabled={submitMutation.isPending}
+                  disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
                 />
               </div>
               <FormSelectField
@@ -266,26 +275,30 @@ const CreateEditExpensePage = () => {
                 name="category"
                 label="Category"
                 options={categoryOptions}
-                disabled={submitMutation.isPending}
+                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
               />
               <FormSelectField
                 control={form.control}
                 name="groupId"
                 label="Group (optional)"
                 options={[{ value: 'none', label: 'No Group' }, ...groups.map((group) => ({ value: group._id, label: group.name }))]}
-                disabled={submitMutation.isPending}
+                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
               />
               <FormSelectField
                 control={form.control}
                 name="paidBy"
                 label="Paid by"
                 options={paidByOptions}
-                disabled={submitMutation.isPending}
+                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
               />
 
               <div className="space-y-2">
                 <p className="text-sm font-medium">Split Type</p>
-                <SplitTypeSelector value={splitType} onChange={setSplitType} disabled={submitMutation.isPending} />
+                <SplitTypeSelector
+                  value={splitType}
+                  onChange={handleSplitTypeChange}
+                  disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
+                />
               </div>
 
               <div className="space-y-3">
@@ -303,7 +316,7 @@ const CreateEditExpensePage = () => {
                       }));
                     }
                   }}
-                  disabled={submitMutation.isPending}
+                  disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
                 />
 
                 <div className="space-y-2">
@@ -322,6 +335,7 @@ const CreateEditExpensePage = () => {
                         onPercentageChange={(value) => updatePercentage(detail.userId, value)}
                         onRemove={() => removeParticipant(detail.userId)}
                         canRemove={participantIds.length > 1}
+                        inputsDisabled={customSplitLocked || createExpenseMutation.isPending || updateExpenseMutation.isPending}
                       />
                     );
                   })}
@@ -341,7 +355,19 @@ const CreateEditExpensePage = () => {
                 </Alert>
               ) : null}
 
-              <Button type="submit" className="w-full" disabled={submitMutation.isPending || !canSubmitSplit}>
+              {customSplitLocked ? (
+                <Alert>
+                  <AlertDescription>
+                    Enter the total expense amount first to edit Unequal or Percentage split values.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={(createExpenseMutation.isPending || updateExpenseMutation.isPending) || !canSubmitSplit}
+              >
                 {isEdit ? 'Update Expense' : 'Save Expense'}
               </Button>
             </form>

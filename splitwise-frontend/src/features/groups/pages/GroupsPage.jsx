@@ -1,17 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { AppShell, EmptyState, PageHeader } from '../../../components/shared';
 import { Button } from '../../../components/ui/button';
 import { Skeleton } from '../../../components/ui/skeleton';
+import { useGroupsListQuery } from '../../../hooks/useGroups';
 import { GroupCard } from '../components/GroupCard';
-import { groupsAPI } from '../../../services/api';
 
 const GroupsPage = () => {
   const navigate = useNavigate();
-  const { data: groups = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['groups'],
-    queryFn: () => groupsAPI.getAll().then((res) => res.data?.data || []),
-  });
+  const { data: groups = [], isLoading, isError, refetch } = useGroupsListQuery();
 
   return (
     <AppShell>

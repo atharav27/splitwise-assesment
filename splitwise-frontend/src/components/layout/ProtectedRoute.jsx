@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 const ProtectedRoute = () => {
-  const { loading, user } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
 
-  if (loading) return <LoadingSpinner />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (isInitializing) return <LoadingSpinner />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return <Outlet />;
 };
