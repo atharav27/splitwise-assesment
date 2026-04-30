@@ -16,6 +16,8 @@ export const create = (data: GroupCreateInput) => Group.create(data);
 export const findById = (id: string) =>
   Group.findOne({ _id: id, isActive: true }).populate(MEMBER_POPULATE).populate(CREATOR_POPULATE);
 
+export const findActiveById = (id: string) => Group.findOne({ _id: id, isActive: true }).select('members createdBy');
+
 export const findByMember = (userId: string) =>
   Group.find({ members: userId, isActive: true })
     .populate(MEMBER_POPULATE)
@@ -34,3 +36,15 @@ export const removeMember = (groupId: string, userId: string) =>
 
 export const softDelete = (groupId: string) =>
   Group.findByIdAndUpdate(groupId, { isActive: false }, { new: true });
+
+export const findActiveGroupMemberIds = async (groupId: string): Promise<string[] | null> => {
+  const group = await Group.findOne({ _id: groupId, isActive: true }).select('members');
+  if (!group) return null;
+  return group.members.map((m: { toString: () => string }) => m.toString());
+};
+
+export const isActiveGroupMember = async (groupId: string, userId: string): Promise<boolean | null> => {
+  const memberIds = await findActiveGroupMemberIds(groupId);
+  if (!memberIds) return null;
+  return memberIds.some((id) => id.toString() === userId.toString());
+};

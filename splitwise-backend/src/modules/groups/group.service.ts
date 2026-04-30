@@ -1,6 +1,7 @@
-const { Group, User } = require('../../models');
 import AppError from '../../utils/AppError';
+import * as activityService from '../activity/activity.service';
 import * as groupRepo from './group.repository';
+import * as userRepo from '../users/user.repository';
 import type { CreateGroupInput } from './group.validator';
 
 type GroupDocLike = {
@@ -23,6 +24,9 @@ export const createGroup = async (payload: CreateGroupInput, creatorId: string) 
     createdBy: creatorId,
     currency: payload.currency,
   });
+  activityService.logActivity(creatorId, 'group.created', 'Group', group._id.toString(), group._id.toString(), {
+    name: payload.name,
+  });
 
   return groupRepo.findById(group._id.toString());
 };
@@ -40,7 +44,17 @@ export const addMember = async (groupId: string, targetUserId: string, requester
   const group = await getGroupRaw(groupId);
   assertAdmin(group, requesterId);
   await assertUsersExist([targetUserId]);
-  return groupRepo.addMember(groupId, targetUserId);
+
+  const isAlreadyMember = group.members.some((m) => m.toString() === targetUserId.toString());
+  if (isAlreadyMember) {
+    throw new AppError('User is already a group member', 400);
+  }
+
+  const updatedGroup = await groupRepo.addMember(groupId, targetUserId);
+  activityService.logActivity(requesterId, 'member.added', 'Group', groupId, groupId, {
+    userId: targetUserId,
+  });
+  return updatedGroup;
 };
 
 export const removeMember = async (groupId: string, targetUserId: string, requesterId: string) => {
@@ -51,7 +65,16 @@ export const removeMember = async (groupId: string, targetUserId: string, reques
     throw new AppError('Cannot remove the group creator', 400);
   }
 
-  return groupRepo.removeMember(groupId, targetUserId);
+  const isMember = group.members.some((m) => m.toString() === targetUserId.toString());
+  if (!isMember) {
+    throw new AppError('User is not a group member', 400);
+  }
+
+  const updatedGroup = await groupRepo.removeMember(groupId, targetUserId);
+  activityService.logActivity(requesterId, 'member.removed', 'Group', groupId, groupId, {
+    userId: targetUserId,
+  });
+  return updatedGroup;
 };
 
 export const deleteGroup = async (groupId: string, requesterId: string) => {
@@ -61,7 +84,7 @@ export const deleteGroup = async (groupId: string, requesterId: string) => {
 };
 
 const getGroupRaw = async (groupId: string) => {
-  const group = await Group.findOne({ _id: groupId, isActive: true });
+  const group = await groupRepo.findActiveById(groupId);
   if (!group) throw new AppError('Group not found', 404);
   return group as GroupDocLike;
 };
@@ -80,9 +103,8 @@ const assertAdmin = (group: GroupDocLike, userId: string) => {
 };
 
 const assertUsersExist = async (userIds: string[]) => {
-  const found = await User.find({ _id: { $in: userIds }, isActive: true }).select('_id');
-  const foundIds = found.map((u: { _id: { toString: () => string } }) => u._id.toString());
-  const foundSet = new Set(foundIds);
+  const foundIds = await userRepo.findActiveIds(userIds);
+  const foundSet = new Set(foundIds.map((id) => id.toString()));
   const missing = userIds.filter((id) => !foundSet.has(id.toString()));
   if (missing.length > 0) {
     throw new AppError(`Users not found: ${missing.join(', ')}`, 400);

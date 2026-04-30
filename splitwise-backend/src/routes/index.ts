@@ -1,7 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import authRouter from '../modules/auth/auth.controller';
+import activityRouter from '../modules/activity/activity.controller';
+import balanceRouter from '../modules/balances/balance.controller';
+import expenseRouter from '../modules/expenses/expense.controller';
 import groupsRouter from '../modules/groups/group.controller';
+import settlementRouter from '../modules/settlements/settlement.controller';
 import usersRouter from '../modules/users/user.controller';
 
 const router = express.Router();
@@ -19,13 +23,11 @@ router.get('/health', (req, res) => {
 });
 
 router.use('/auth', authRouter);
+router.use('/activity', activityRouter);
+router.use('/balances', balanceRouter);
+router.use('/expenses', expenseRouter);
 router.use('/groups', groupsRouter);
+router.use('/settlements', settlementRouter);
 router.use('/users', usersRouter);
-
-// Modules plugged in per phase:
-// router.use('/expenses',    require('../modules/expenses/expense.controller'));
-// router.use('/balances',    require('../modules/balances/balance.controller'));
-// router.use('/settlements', require('../modules/settlements/settlement.controller'));
-// router.use('/activity',    require('../modules/activity/activity.controller'));
 
 export default router;

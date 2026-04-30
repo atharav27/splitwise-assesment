@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 import AppError from '../../utils/AppError';
+import * as activityService from '../activity/activity.service';
 import * as authRepo from './auth.repository';
 import type { LoginInput, SignupInput } from './auth.validator';
 
@@ -21,6 +22,10 @@ export const signup = async ({ name, email, password }: SignupInput) => {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const user = await authRepo.createUser({ name, email, passwordHash });
+  const userId = String(user._id);
+  activityService.logActivity(userId, 'group.created', 'User', userId, null, {
+    name: user.name,
+  });
 
   const token = signToken(user._id, user.email);
   return { token, user: sanitizeUser(user) };
