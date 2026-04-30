@@ -1,0 +1,139 @@
+---
+description: Backend engineering standards for Node.js, Express, and MongoDB including architecture, validation, security, response format, and layer boundaries.
+alwaysApply: true
+---
+
+# Backend Engineering Rules (Node.js + Express + MongoDB)
+
+## 1. Architecture & Structure
+
+- Always follow modular architecture:
+  Controller -> Service -> Repository -> Database
+- Never place business logic inside controllers
+- Each module must be self-contained inside `/modules/<module-name>`
+
+## 2. Controllers
+
+- Controllers must only handle:
+  - Request parsing
+  - Calling service layer
+  - Sending response
+- Controllers must NOT:
+  - Contain business logic
+  - Access database directly
+- Keep controllers under 15 lines where possible
+
+## 3. Services (Business Logic Layer)
+
+- All core logic must reside in services
+- Services must be reusable and independent of HTTP layer
+- Avoid direct use of req/res in services
+- Break large logic into smaller helper functions
+
+## 4. Repository Layer
+
+- Repository handles all database queries
+- No business logic in repository
+- Always abstract DB calls behind repository functions
+
+## 5. Validation
+
+- Validate all incoming data using schema validation (Zod/Joi)
+- Reject invalid input before reaching service layer
+- Never trust client input
+
+## 6. Error Handling
+
+- Use centralized error handling middleware
+- Throw custom errors (e.g., AppError) from services
+- Do not use try-catch in every controller
+- Always return consistent error responses
+
+## 7. Naming Conventions
+
+- Use clear, descriptive names:
+  - createExpense, calculateBalances, optimizeSettlements
+- Avoid generic names like handleData, processStuff
+
+## 8. Code Quality
+
+- Use async/await (avoid .then/.catch)
+- Keep functions small and focused
+- Avoid deeply nested logic
+- Use early returns where possible
+
+## 9. Constants & Enums
+
+- Avoid magic strings
+- Store constants like split types in a separate file
+
+## 10. Transactions & Data Integrity
+
+- Use database transactions for critical operations:
+  - Expense creation
+  - Ledger updates
+- Ensure atomic operations
+
+## 11. Logging
+
+- Use structured logging (no console.log in production code)
+- Log important events (expense creation, errors)
+
+## 12. Security
+
+- Hash passwords using bcrypt
+- Use JWT for authentication
+- Sanitize inputs
+- Implement rate limiting for APIs
+
+## 13. API Response Format
+
+Always return responses in the format:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "optional message"
+}
+```
+
+## 14. Edge Case Handling
+
+Always validate:
+
+- Split totals match amount
+- No duplicate participants
+- Valid user IDs
+- User belongs to group (if group expense)
+
+## 15. Advanced Logic Rules
+
+- Always store normalized splitDetails in expense
+- Use ledger-based system for balances
+- Settlement optimization must minimize transactions
+
+## 16. Clean Code Practices
+
+- Follow single responsibility principle
+- Avoid code duplication
+- Extract reusable utilities
+- Write readable and maintainable code
+
+## 17. Testing (Optional but Recommended)
+
+- Write unit tests for core logic:
+  - Split calculation
+  - Settlement optimization
+
+## 18. Documentation
+
+- Add comments only for complex logic
+- Keep code self-explanatory
+- Maintain clean README
+
+---
+
+## Strict Rule
+
+If any logic is written in the wrong layer (e.g., business logic in controller), refactor it immediately.
