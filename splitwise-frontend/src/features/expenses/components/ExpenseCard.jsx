@@ -32,6 +32,10 @@ export const ExpenseCard = ({ expense, variant = "compact" }) => {
         item.userId?._id === user?._id,
     )?.amount || 0;
   const paidById = expense.paidBy?._id || expense.paidBy;
+  const payerLabel =
+    user?._id && paidById && String(user._id) === String(paidById)
+      ? "you"
+      : expense.paidBy?.name || "Unknown";
   const canManage = Boolean(user?._id && paidById && user._id === paidById);
 
   const deleteMutation = useMutation({
@@ -79,7 +83,7 @@ export const ExpenseCard = ({ expense, variant = "compact" }) => {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Paid by {expense.paidBy?.name || "Unknown"} ·{" "}
+                    Paid by {payerLabel} ·{" "}
                     {formatRelative(expense.date || expense.createdAt)}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -147,7 +151,7 @@ export const ExpenseCard = ({ expense, variant = "compact" }) => {
                   {expense.description || "Expense"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Paid by {expense.paidBy?.name || "Unknown"} ·{" "}
+                  Paid by {payerLabel} ·{" "}
                   {(expense.participants || []).length} participants
                 </p>
               </div>

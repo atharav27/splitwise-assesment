@@ -91,7 +91,7 @@ const enrichActivityNames = async (items: Array<Record<string, unknown>>) => {
     return {
       ...item,
       actorName: actor?.name || 'Someone',
-      targetName: target?.name || 'user',
+      targetName: target?.name || (typeof metadata.userName === 'string' ? metadata.userName : null) || 'user',
       groupName: groupDoc?.name || null,
       entity: metadata,
       actor: actor

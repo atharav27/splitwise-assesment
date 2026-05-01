@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell, AmountDisplay, EmptyState, SkeletonList } from '../components/shared';
+import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +44,7 @@ const QuickStatCard = ({ value, label, onClick }) => (
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const { data: balances = [], isLoading: balancesLoading } = useGlobalBalances();
   const { data: groups = [], isLoading: groupsLoading } = useDashboardGroups();
@@ -67,6 +69,11 @@ const Dashboard = () => {
   }).length;
 
   const pendingSettlements = settlements.length || balances.filter((item) => Number(item.amount) > 0).length;
+  const handleLogout = () => {
+    localStorage.clear();
+    logout();
+    navigate('/login');
+  };
   const balancesWithExpenseName = useMemo(() => {
     const expenses = Array.isArray(recentExpenses) ? recentExpenses : [];
     return balances.map((entry) => {
@@ -86,18 +93,23 @@ const Dashboard = () => {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="hidden items-start justify-between md:flex">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <h1 className="text-xl font-semibold sm:text-2xl">Dashboard</h1>
             <p className="text-sm text-muted-foreground">Track your balances, groups, and recent activity.</p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            onClick={() => navigate('/expenses/new')}
-          >
-            Add Expense
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className=" hidden md:flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:px-4"
+              onClick={() => navigate('/expenses/new')}
+            >
+              Add Expense
+            </button>
+            <Button type="button" variant="outline" size="icon" onClick={handleLogout} aria-label="Logout">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {balancesLoading ? (

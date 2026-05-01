@@ -72,13 +72,18 @@ export const pay = async (payload: PayInput, requesterId: string) => {
     });
 
     await session.commitTransaction();
+    const targetUser = await userRepo.findById(toUser.toString());
     activityService.logActivity(
       requesterId,
       'settlement.paid',
       'Settlement',
       settlement._id.toString(),
       groupId || null,
-      { amount: roundedAmount }
+      {
+        amount: roundedAmount,
+        userId: toUser.toString(),
+        userName: targetUser?.name || targetUser?.email || 'user',
+      }
     );
     return settlement;
   } catch (err) {
