@@ -36,6 +36,18 @@ export const ExpenseCard = ({ expense, variant = "compact" }) => {
     user?._id && paidById && String(user._id) === String(paidById)
       ? "you"
       : expense.paidBy?.name || "Unknown";
+  const participantsCount = (() => {
+    if (Array.isArray(expense.splitDetails) && expense.splitDetails.length > 0) {
+      return new Set(
+        expense.splitDetails
+          .map((item) => item?.userId?._id || item?.userId || item?.user?._id)
+          .filter(Boolean)
+          .map((id) => String(id))
+      ).size;
+    }
+    if (Array.isArray(expense.participants)) return expense.participants.length;
+    return 0;
+  })();
   const canManage = Boolean(user?._id && paidById && user._id === paidById);
 
   const deleteMutation = useMutation({
@@ -152,7 +164,7 @@ export const ExpenseCard = ({ expense, variant = "compact" }) => {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Paid by {payerLabel} ·{" "}
-                  {(expense.participants || []).length} participants
+                  {participantsCount} participants
                 </p>
               </div>
               <div className="text-right">
