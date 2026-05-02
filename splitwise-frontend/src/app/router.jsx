@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import GuestRoute from '../components/layout/GuestRoute';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
+import Dashboard from '../pages/Dashboard';
 
-const Dashboard = lazy(() => import('../pages/Dashboard'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const SignupPage = lazy(() => import('../features/auth/pages/SignupPage'));

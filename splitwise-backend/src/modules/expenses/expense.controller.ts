@@ -21,12 +21,7 @@ router.get('/', async (req, res) => {
   return success(res, result, 'Expenses fetched');
 });
 
-router.get('/group/:groupId', async (req, res) => {
-  const groupId = objectId.parse(req.params.groupId);
-  const query = paginationSchema.parse(req.query);
-  const result = await expenseService.getExpenses({ ...query, groupId }, req.user!.id);
-  return success(res, result, 'Expenses fetched');
-});
+ 
 
 router.get('/:id', async (req, res) => {
   const expense = await expenseService.getExpenseByIdForRequester(req.params.id, req.user!.id);

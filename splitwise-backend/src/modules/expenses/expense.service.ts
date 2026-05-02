@@ -93,7 +93,7 @@ export const getExpenses = async (query: ExpensePaginationInput, requesterId: st
   const baseVisibilityFilter: Record<string, unknown> = {
     $or: [
       { groupId: null, $or: [{ paidBy: requesterId }, { 'splitDetails.userId': requesterId }] },
-      { groupId: { $in: requesterGroupIds } },
+      { groupId: { $in: requesterGroupIds } }, 
     ],
   };
 

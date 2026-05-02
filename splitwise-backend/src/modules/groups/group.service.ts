@@ -74,7 +74,7 @@ export const removeMember = async (groupId: string, targetUserId: string, reques
   activityService.logActivity(requesterId, 'member.removed', 'Group', groupId, groupId, {
     userId: targetUserId,
   });
-  return updatedGroup;
+  return updatedGroup; 
 };
 
 export const deleteGroup = async (groupId: string, requesterId: string) => {
