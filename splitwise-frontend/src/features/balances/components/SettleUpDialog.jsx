@@ -14,6 +14,28 @@ import { showErrorToast, showSuccessToast } from '../../../lib/toast';
 import { settlementsAPI } from '../../../services/api';
 import { formatCurrency } from '../../../lib/utils';
 
+const resolveSettlementScope = (entry) => {
+  const explicitScope = entry?.settlementScope;
+  if (explicitScope && typeof explicitScope === 'object') {
+    if (explicitScope.overall === true) return { overall: true, groupId: null };
+    if ('groupId' in explicitScope) return { overall: false, groupId: explicitScope.groupId ?? null };
+  }
+
+  const breakdown = Array.isArray(entry?.breakdown) ? entry.breakdown : [];
+  if (breakdown.length > 0) {
+    const scopeKeys = [...new Set(breakdown.map((b) => (b.groupId == null ? '__personal__' : String(b.groupId))))];
+    if (scopeKeys.length > 1) return { overall: true, groupId: null };
+    if (scopeKeys[0] === '__personal__') return { overall: false, groupId: null };
+    return { overall: false, groupId: scopeKeys[0] };
+  }
+
+  if (entry && Object.prototype.hasOwnProperty.call(entry, 'groupId')) {
+    return { overall: false, groupId: entry.groupId ?? null };
+  }
+
+  return null;
+};
+
 export const SettleUpDialog = ({ open, onOpenChange, entry, currentUserId, onSuccess }) => {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -49,18 +71,19 @@ export const SettleUpDialog = ({ open, onOpenChange, entry, currentUserId, onSuc
     setLoading(true);
     setError('');
     try {
-      const breakdown = entry?.breakdown || [];
-      const scopeKeys = [
-        ...new Set(breakdown.map((b) => (b.groupId == null ? '__p__' : String(b.groupId)))),
-      ];
-      const overall = breakdown.length > 1 || scopeKeys.length > 1;
+      const scope = resolveSettlementScope(entry);
+      if (!scope) {
+        setError('Cannot determine settlement scope for this balance. Please settle from All Balances.');
+        setLoading(false);
+        return;
+      }
 
       await settlementsAPI.pay({
         fromUser: currentUserId,
         toUser: entry.userId,
         amount: parsed,
-        groupId: overall ? null : breakdown[0]?.groupId ?? null,
-        overall,
+        groupId: scope.groupId,
+        overall: scope.overall,
         note: note || '',
       });
       showSuccessToast(`Payment of ${formatCurrency(parsed, 'INR')} recorded`);
@@ -81,7 +104,7 @@ export const SettleUpDialog = ({ open, onOpenChange, entry, currentUserId, onSuc
           <DialogTitle>Settle up with {entry?.name || 'user'}</DialogTitle>
           <DialogDescription>
             Outstanding: {formatCurrency(outstanding, 'INR')}
-            {entry?.breakdown?.length > 1 || [...new Set((entry?.breakdown || []).map((b) => (b.groupId == null ? '__p__' : String(b.groupId))))].length > 1 ? (
+            {resolveSettlementScope(entry)?.overall ? (
               <span className="mt-2 block text-xs">
                 This records payment across personal and group balances (overall settle).
               </span>

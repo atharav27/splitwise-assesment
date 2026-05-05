@@ -12,9 +12,19 @@ const actionIconMap = {
   'member.removed': UserMinus,
 };
 
-const getActivityText = (item) => {
-  const actor = item.actorName || item.actor?.name || item.userId?.name || 'Someone';
-  const target = item.targetName || item.target?.name || item.metadata?.userName || 'user';
+const getUserId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  return value._id || value.id || null;
+};
+
+const getActivityText = (item, currentUserId) => {
+  const actorId = getUserId(item.actor) || getUserId(item.userId);
+  const targetId = getUserId(item.target) || item.metadata?.userId || null;
+  const actorName = item.actorName || item.actor?.name || item.userId?.name || 'Someone';
+  const targetName = item.targetName || item.target?.name || item.metadata?.userName || 'user';
+  const actor = actorId && currentUserId && actorId.toString() === currentUserId.toString() ? 'You' : actorName;
+  const target = targetId && currentUserId && targetId.toString() === currentUserId.toString() ? 'you' : targetName;
   const metadata = item.metadata || {};
   const groupName = item.groupName || item.group?.name || item.groupId?.name;
 
@@ -38,9 +48,9 @@ const getActivityText = (item) => {
   }
 };
 
-export const ActivityItem = ({ item, isLast = false }) => {
+export const ActivityItem = ({ item, currentUserId, isLast = false }) => {
   const Icon = actionIconMap[item.action] || CirclePlus;
-  const text = getActivityText(item);
+  const text = getActivityText(item, currentUserId);
   const timestamp = item.createdAt || item.timestamp;
 
   return (

@@ -3,6 +3,7 @@ import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../compone
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { useAuth } from '../../../context/AuthContext';
 import {
   useActivityGroupsQuery,
   useGroupActivityQuery,
@@ -12,6 +13,7 @@ import { showErrorToast } from '../../../lib/toast';
 import { ActivityItem } from '../components/ActivityItem';
 
 const ActivityPage = () => {
+  const { user } = useAuth();
   const [tab, setTab] = useState('mine');
   const [groupId, setGroupId] = useState('all');
   const [mineCursor, setMineCursor] = useState(null);
@@ -75,7 +77,12 @@ const ActivityPage = () => {
             <>
               <div>
                 {displayedItems.map((item, idx) => (
-                  <ActivityItem key={item._id || item.id || idx} item={item} isLast={idx === displayedItems.length - 1} />
+                  <ActivityItem
+                    key={item._id || item.id || idx}
+                    item={item}
+                    currentUserId={user?._id || user?.id}
+                    isLast={idx === displayedItems.length - 1}
+                  />
                 ))}
               </div>
               {nextCursor ? (
@@ -125,7 +132,12 @@ const ActivityPage = () => {
             <>
               <div>
                 {displayedItems.map((item, idx) => (
-                  <ActivityItem key={item._id || item.id || idx} item={item} isLast={idx === displayedItems.length - 1} />
+                  <ActivityItem
+                    key={item._id || item.id || idx}
+                    item={item}
+                    currentUserId={user?._id || user?.id}
+                    isLast={idx === displayedItems.length - 1}
+                  />
                 ))}
               </div>
               {nextCursor ? (

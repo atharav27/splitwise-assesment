@@ -138,7 +138,7 @@ export const pay = async (payload: PayInput, requesterId: string) => {
     groupId: groupId || null,
   })) as LedgerDocLike | null;
 
-  if (!ledgerEntry || ledgerEntry.amount <= DUST_THRESHOLD) {
+  if (!ledgerEntry) {
     throw new AppError('No outstanding debt found between these users', 400);
   }
 

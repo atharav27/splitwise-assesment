@@ -70,6 +70,18 @@ const SettlementsPage = () => {
     return getOptimizedTransactions(optimizedQuery.data);
   }, [optimizedQuery.data]);
 
+  const topTransactionRole = useMemo(() => {
+    const tx = optimizedList[0];
+    if (!tx) return 'none';
+    const fromParty = getTxParty(tx, 'from');
+    const toParty = getTxParty(tx, 'to');
+    const currentUserId = user?._id || user?.id;
+    if (!currentUserId) return 'none';
+    if (fromParty.id === currentUserId) return 'payer';
+    if (toParty.id === currentUserId) return 'receiver';
+    return 'none';
+  }, [optimizedList, user]);
+
   const selectedPaymentEntry = useMemo(() => {
     const tx = optimizedList[0];
     if (!tx) return null;
@@ -82,9 +94,7 @@ const SettlementsPage = () => {
     if (fromParty.id === currentUserId) {
       return { userId: toParty.id, name: toParty.name, amount: Number(tx.amount || 0), groupId };
     }
-    if (toParty.id === currentUserId) {
-      return { userId: fromParty.id, name: fromParty.name, amount: Number(tx.amount || 0), groupId };
-    }
+    if (toParty.id === currentUserId) return null;
     return null;
   }, [optimizedList, user, groupId]);
 
@@ -189,6 +199,7 @@ const SettlementsPage = () => {
                 data={optimizedQuery.data}
                 isLoading={optimizedQuery.isLoading}
                 selectedEntry={selectedPaymentEntry}
+                canRecordPayment={topTransactionRole === 'payer'}
                 onRecordPayment={() => setDialogOpen(true)}
               />
             </div>

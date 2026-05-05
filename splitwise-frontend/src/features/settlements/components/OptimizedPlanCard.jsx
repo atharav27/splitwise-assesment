@@ -4,7 +4,7 @@ import { Skeleton } from '../../../components/ui/skeleton';
 import { getOptimizedTransactions } from '../../../hooks/useSettlements';
 import { TransactionRow } from './TransactionRow';
 
-export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEntry }) => {
+export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEntry, canRecordPayment }) => {
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
   const optimized = getOptimizedTransactions(data);
@@ -34,8 +34,8 @@ export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEn
           <TransactionRow key={`${tx.from}-${tx.to}-${idx}`} tx={tx} />
         ))}
 
-        <Button className="w-full" onClick={onRecordPayment} disabled={!selectedEntry}>
-          Record a Payment
+        <Button className="w-full" onClick={onRecordPayment} disabled={!selectedEntry || !canRecordPayment}>
+          {canRecordPayment ? 'Record a Payment' : 'Waiting for payment'}
         </Button>
       </CardContent>
     </Card>

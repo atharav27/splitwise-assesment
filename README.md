@@ -82,6 +82,14 @@ Expense-group compatibility route:
 
 - `GET /api/expenses/group/:groupId`
 
+## Settlement and Balance Scope Contract
+
+- `All Balances` is the primary actionable settlement surface and represents pair-net across scopes.
+- `By Group` is a group-scoped informational breakdown and is secondary context.
+- Settlement actions should originate from `All Balances` entries where the current user is debtor.
+- Group views can display scope-specific residuals even when overall pair-net is near zero.
+- When settlement scope is ambiguous, the client must block action instead of defaulting to an incorrect scope.
+
 ## Local Setup
 
 ### 1) Backend

@@ -112,6 +112,9 @@ const BalancesPage = () => {
         </TabsContent>
 
         <TabsContent value="group">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Group view is a scope breakdown only. Settle payments from All Balances.
+          </p>
           {groupBalancesQuery.isLoading ? (
             <SkeletonList count={2} className="h-12 w-full" />
           ) : (
