@@ -85,12 +85,25 @@ export const swaggerSpec = {
           history: { type: 'array', items: { type: 'object' } },
         },
       },
+      BalanceBreakdownLine: {
+        type: 'object',
+        properties: {
+          groupId: { type: 'string', nullable: true },
+          amount: { type: 'number' },
+          direction: { type: 'string', enum: ['owe', 'owed'] },
+        },
+      },
       BalanceEntry: {
         type: 'object',
         properties: {
           user: { $ref: '#/components/schemas/UserRef' },
-          type: { type: 'string', enum: ['owe', 'owed'] },
-          amount: { type: 'number' },
+          netAmount: { type: 'number', description: 'Absolute net balance with this counterparty' },
+          amount: {
+            type: 'number',
+            description: 'Same as netAmount; included for backward compatibility with clients expecting `amount`',
+          },
+          direction: { type: 'string', enum: ['owe', 'owed'] },
+          breakdown: { type: 'array', items: { $ref: '#/components/schemas/BalanceBreakdownLine' } },
         },
       },
       SettlementRef: {
@@ -366,8 +379,29 @@ export const swaggerSpec = {
       get: {
         tags: ['Balances'],
         summary: 'Get global balances',
+        description:
+          'Returns one row per counterparty: `user`, `netAmount`, `amount` (alias of `netAmount`), `direction`, and `breakdown` by group.',
         security: bearerAuthSecurity,
-        responses: { 200: { description: 'Balances fetched' } },
+        responses: {
+          200: {
+            description: 'List of balance rows for the authenticated user',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/BalanceEntry' },
+                    },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     '/balances/group/{id}': {

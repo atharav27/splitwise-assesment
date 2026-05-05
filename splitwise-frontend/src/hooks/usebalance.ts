@@ -18,7 +18,9 @@ const normalizeBalanceEntry = (entry: any, fallbackUser: any = null) => {
     name: entry?.name || user?.name || 'Unknown user',
     email: entry?.email || user?.email || '',
     avatar: entry?.avatar || user?.avatar || null,
-    groupId: entry?.groupId || null,
+    groupId: entry?.groupId ?? null,
+    amount: entry?.netAmount ?? entry?.amount ?? 0,
+    breakdown: Array.isArray(entry?.breakdown) ? entry.breakdown : [],
   };
 };
 

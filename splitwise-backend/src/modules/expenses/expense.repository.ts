@@ -52,6 +52,13 @@ export const upsertLedger = async ({
   );
 };
 
+export const findAllLedgerRowsForPair = (userA: string, userB: string, session: Session) => {
+  const [canonFrom, canonTo] = [userA.toString(), userB.toString()].sort();
+  return Ledger.find({ fromUser: canonFrom, toUser: canonTo })
+    .session(session)
+    .sort({ lastUpdatedAt: 1, groupId: 1, _id: 1 });
+};
+
 export const reverseLedgerForExpense = async ({
   splitDetails,
   payerId,

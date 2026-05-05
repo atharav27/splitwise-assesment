@@ -46,6 +46,16 @@ export const getLedgerEntry = ({
   return Ledger.findOne({ fromUser: canonFrom, toUser: canonTo, groupId: groupId || null });
 };
 
+export const getAllLedgerRowsForPair = (fromUserId: string, toUserId: string) => {
+  const ids = [fromUserId.toString(), toUserId.toString()].sort();
+  const [canonFrom, canonTo] = ids;
+  return Ledger.find({
+    fromUser: canonFrom,
+    toUser: canonTo,
+    $or: [{ amount: { $gt: DUST_THRESHOLD } }, { amount: { $lt: -DUST_THRESHOLD } }],
+  }).sort({ lastUpdatedAt: 1, groupId: 1, _id: 1 });
+};
+
 export const getLedgerByGroup = (groupId: string) =>
   Ledger.find({ groupId, amount: { $gt: DUST_THRESHOLD } });
 

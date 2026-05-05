@@ -4,6 +4,8 @@ import * as groupRepo from '../groups/group.repository';
 import * as activityService from '../activity/activity.service';
 import * as userRepo from '../users/user.repository';
 import AppError from '../../utils/AppError';
+import { ACTIVITY_ACTIONS, DUST_THRESHOLD } from '../../utils/constants';
+import { applyMutualNetting } from '../../utils/ledgerNetting';
 import { buildPageMeta } from '../../utils/pagination';
 import { calculateSplit, round2 } from '../../utils/splitCalculator';
 import * as expenseRepo from './expense.repository';
@@ -35,6 +37,7 @@ export const createExpense = async (
   const session = await mongoose.startSession();
   session.startTransaction();
   let expense: Record<string, unknown>;
+  let totalNetted = 0;
   try {
     expense = await expenseRepo.create(
       {
@@ -62,6 +65,12 @@ export const createExpense = async (
       });
     }
 
+    for (const detail of computedSplits) {
+      if (detail.userId.toString() === paidBy.toString()) continue;
+      const n = await applyMutualNetting(paidBy.toString(), detail.userId.toString(), session);
+      totalNetted = round2(totalNetted + n);
+    }
+
     await session.commitTransaction();
   } catch (err) {
     await session.abortTransaction();
@@ -83,6 +92,17 @@ export const createExpense = async (
     groupId || null,
     { amount: round2(amount), description }
   );
+
+  if (totalNetted > DUST_THRESHOLD) {
+    activityService.logActivity(
+      requesterId,
+      ACTIVITY_ACTIONS.BALANCE_AUTO_NETTED,
+      'Ledger',
+      String((expense as { _id?: unknown })._id),
+      groupId || null,
+      { amount: totalNetted }
+    );
+  }
 
   return expense;
 };
@@ -150,6 +170,7 @@ export const updateExpense = async (id: string, body: UpdateExpenseInput, reques
 
   const session = await mongoose.startSession();
   session.startTransaction();
+  let totalNetted = 0;
   try {
     const snapshot = existing.toObject();
     const historyEntry = { updatedAt: new Date(), updatedBy: requesterId, snapshot };
@@ -180,6 +201,12 @@ export const updateExpense = async (id: string, body: UpdateExpenseInput, reques
       });
     }
 
+    for (const detail of computedSplits) {
+      if (detail.userId.toString() === paidBy.toString()) continue;
+      const n = await applyMutualNetting(paidBy.toString(), detail.userId.toString(), session);
+      totalNetted = round2(totalNetted + n);
+    }
+
     const updated = await expenseRepo.updateById(
       id,
       {
@@ -200,6 +227,16 @@ export const updateExpense = async (id: string, body: UpdateExpenseInput, reques
     activityService.logActivity(requesterId, 'expense.updated', 'Expense', id, groupId ? groupId.toString() : null, {
       amount: round2(amount),
     });
+    if (totalNetted > DUST_THRESHOLD) {
+      activityService.logActivity(
+        requesterId,
+        ACTIVITY_ACTIONS.BALANCE_AUTO_NETTED,
+        'Ledger',
+        id,
+        groupId ? groupId.toString() : null,
+        { amount: totalNetted }
+      );
+    }
     return updated;
   } catch (err) {
     await session.abortTransaction();
@@ -216,6 +253,7 @@ export const deleteExpense = async (id: string, requesterId: string) => {
 
   const session = await mongoose.startSession();
   session.startTransaction();
+  let totalNetted = 0;
   try {
     const existingPaidBy = toIdString(existing.paidBy);
     const existingGroupId = existing.groupId ? toIdString(existing.groupId) : null;
@@ -231,6 +269,12 @@ export const deleteExpense = async (id: string, requesterId: string) => {
       session,
     });
 
+    for (const detail of existingSplitDetails) {
+      if (detail.userId.toString() === existingPaidBy) continue;
+      const n = await applyMutualNetting(existingPaidBy, detail.userId.toString(), session);
+      totalNetted = round2(totalNetted + n);
+    }
+
     await expenseRepo.updateById(id, { isDeleted: true, deletedAt: new Date() }, session);
     await session.commitTransaction();
     activityService.logActivity(
@@ -241,6 +285,16 @@ export const deleteExpense = async (id: string, requesterId: string) => {
       existingGroupId,
       {}
     );
+    if (totalNetted > DUST_THRESHOLD) {
+      activityService.logActivity(
+        requesterId,
+        ACTIVITY_ACTIONS.BALANCE_AUTO_NETTED,
+        'Ledger',
+        id,
+        existingGroupId,
+        { amount: totalNetted }
+      );
+    }
   } catch (err) {
     await session.abortTransaction();
     throw err;

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { balancesAPI, expensesAPI, groupsAPI, settlementsAPI } from '../services/api';
+import { expensesAPI, groupsAPI, settlementsAPI } from '../services/api';
 
 const getDataOrFallback = (response) => response?.data?.data || [];
 const getListFromData = (response, key) => {
@@ -8,26 +8,6 @@ const getListFromData = (response, key) => {
   if (data && Array.isArray(data[key])) return data[key];
   return [];
 };
-const normalizeBalanceEntry = (entry) => {
-  const user = entry?.user || null;
-  return {
-    ...entry,
-    userId: entry?.userId || user?._id || null,
-    name: entry?.name || user?.name || 'Unknown user',
-    email: entry?.email || user?.email || '',
-    avatar: entry?.avatar || user?.avatar || null,
-  };
-};
-
-export const useGlobalBalances = () =>
-  useQuery({
-    queryKey: ['balances', 'global'],
-    queryFn: () =>
-      balancesAPI
-        .getGlobal()
-        .then((response) => getDataOrFallback(response))
-        .then((list) => (Array.isArray(list) ? list.map(normalizeBalanceEntry) : [])),
-  });
 
 export const useDashboardGroups = () =>
   useQuery({

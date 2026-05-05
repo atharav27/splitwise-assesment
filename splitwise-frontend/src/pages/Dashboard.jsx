@@ -12,10 +12,9 @@ import { GroupCard } from '../features/groups/components/GroupCard';
 import {
   useDashboardGroups,
   useDashboardMonthlyExpenses,
-  useDashboardSettlements,
-  useGlobalBalances,
   useRecentExpenses,
 } from '../hooks/useDashboard';
+import { useGlobalBalancesQuery } from '../hooks/usebalance';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -46,11 +45,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const { data: balances = [], isLoading: balancesLoading } = useGlobalBalances();
+  const { data: balances = [], isLoading: balancesLoading } = useGlobalBalancesQuery();
   const { data: groups = [], isLoading: groupsLoading } = useDashboardGroups();
   const { data: recentExpenses = [], isLoading: expensesLoading } = useRecentExpenses();
   const { data: allExpenses = [] } = useDashboardMonthlyExpenses();
-  const { data: settlements = [] } = useDashboardSettlements();
 
   const netOwed = balances
     .filter((item) => item.direction === 'owed')
@@ -68,7 +66,7 @@ const Dashboard = () => {
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }).length;
 
-  const pendingSettlements = settlements.length || balances.filter((item) => Number(item.amount) > 0).length;
+  const openBalanceCount = balances.filter((item) => Number(item.amount || 0) > 0).length;
   const handleLogout = () => {
     localStorage.clear();
     logout();
@@ -156,7 +154,7 @@ const Dashboard = () => {
             <>
               <QuickStatCard value={groups.length} label="Active Groups" onClick={() => navigate('/groups')} />
               <QuickStatCard value={monthlyCount} label="Expenses this month" onClick={() => navigate('/expenses')} />
-              <QuickStatCard value={pendingSettlements} label="Pending settlements" onClick={() => navigate('/settlements')} />
+              <QuickStatCard value={openBalanceCount} label="Open balances" onClick={() => navigate('/balances')} />
             </>
           )}
         </div>

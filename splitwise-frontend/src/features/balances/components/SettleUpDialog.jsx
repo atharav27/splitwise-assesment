@@ -49,11 +49,18 @@ export const SettleUpDialog = ({ open, onOpenChange, entry, currentUserId, onSuc
     setLoading(true);
     setError('');
     try {
+      const breakdown = entry?.breakdown || [];
+      const scopeKeys = [
+        ...new Set(breakdown.map((b) => (b.groupId == null ? '__p__' : String(b.groupId)))),
+      ];
+      const overall = breakdown.length > 1 || scopeKeys.length > 1;
+
       await settlementsAPI.pay({
         fromUser: currentUserId,
         toUser: entry.userId,
         amount: parsed,
-        groupId: entry.groupId || null,
+        groupId: overall ? null : breakdown[0]?.groupId ?? null,
+        overall,
         note: note || '',
       });
       showSuccessToast(`Payment of ${formatCurrency(parsed, 'INR')} recorded`);
@@ -74,6 +81,11 @@ export const SettleUpDialog = ({ open, onOpenChange, entry, currentUserId, onSuc
           <DialogTitle>Settle up with {entry?.name || 'user'}</DialogTitle>
           <DialogDescription>
             Outstanding: {formatCurrency(outstanding, 'INR')}
+            {entry?.breakdown?.length > 1 || [...new Set((entry?.breakdown || []).map((b) => (b.groupId == null ? '__p__' : String(b.groupId))))].length > 1 ? (
+              <span className="mt-2 block text-xs">
+                This records payment across personal and group balances (overall settle).
+              </span>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
 

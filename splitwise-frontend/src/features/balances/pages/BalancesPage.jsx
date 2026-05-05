@@ -24,6 +24,14 @@ const BalancesPage = () => {
 
   const balances = useMemo(() => globalQuery.data || [], [globalQuery.data]);
 
+  const groupNamesById = useMemo(() => {
+    const map = {};
+    (groupsQuery.data || []).forEach((g) => {
+      if (g?._id) map[g._id] = g.name || 'Group';
+    });
+    return map;
+  }, [groupsQuery.data]);
+
   const { totalOwed, totalOwe, net } = useMemo(() => {
     const owed = balances
       .filter((entry) => entry.direction === 'owed')
@@ -92,10 +100,11 @@ const BalancesPage = () => {
               description="No outstanding balances right now."
             />
           ) : (
-            balances.map((entry, idx) => (
+            balances.map((entry) => (
               <BalanceSummaryCard
-                key={`${entry.userId || entry._id || idx}-${entry.direction}-${entry.groupId || 'personal'}`}
+                key={entry.userId || entry.user?._id || entry._id}
                 entry={entry}
+                groupNamesById={groupNamesById}
                 onSettleClick={setSelectedEntry}
               />
             ))

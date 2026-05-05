@@ -34,30 +34,65 @@ export const getGroupBalances = async (groupId: string, userId: string) => {
   return buildGroupBalanceList(entries, memberIds, userId, groupId);
 };
 
+type BreakdownLine = {
+  groupId: string | null;
+  amount: number;
+  direction: 'owe' | 'owed';
+};
+
 const buildBalanceList = (entries: LedgerEntry[], userId: string) => {
   const uid = userId.toString();
 
-  return entries
-    .map((entry) => {
-      const fromId = entry.fromUser._id.toString();
-      const amount = round2(entry.amount);
+  type Agg = {
+    net: number;
+    user: PopulatedUser;
+    breakdown: BreakdownLine[];
+  };
 
-      if (fromId === uid) {
-        return {
-          user: entry.toUser,
-          amount,
-          direction: 'owe' as const,
-          groupId: entry.groupId ? entry.groupId.toString() : null,
-        };
-      }
+  const byOther = new Map<string, Agg>();
+
+  for (const entry of entries) {
+    const fromId = entry.fromUser._id.toString();
+    const amount = round2(entry.amount);
+    const isFromMe = fromId === uid;
+    const mySignedAmount = isFromMe ? amount : -amount;
+    const other = isFromMe ? entry.toUser : entry.fromUser;
+    const otherId = other._id.toString();
+
+    const groupIdVal = entry.groupId
+      ? typeof entry.groupId === 'string'
+        ? entry.groupId
+        : entry.groupId.toString()
+      : null;
+
+    const direction: 'owe' | 'owed' = mySignedAmount > 0 ? 'owe' : 'owed';
+    const lineAmount = round2(Math.abs(mySignedAmount));
+
+    let agg = byOther.get(otherId);
+    if (!agg) {
+      agg = { net: 0, user: other, breakdown: [] };
+      byOther.set(otherId, agg);
+    }
+    agg.net = round2(agg.net + mySignedAmount);
+    agg.breakdown.push({
+      groupId: groupIdVal,
+      amount: lineAmount,
+      direction,
+    });
+  }
+
+  return [...byOther.values()]
+    .map((agg) => {
+      const netAmount = round2(Math.abs(agg.net));
       return {
-        user: entry.fromUser,
-        amount,
-        direction: 'owed' as const,
-        groupId: entry.groupId ? entry.groupId.toString() : null,
+        user: agg.user,
+        netAmount,
+        amount: netAmount,
+        direction: agg.net > 0 ? ('owe' as const) : ('owed' as const),
+        breakdown: agg.breakdown,
       };
     })
-    .filter((b) => b.amount > DUST_THRESHOLD);
+    .filter((b) => b.netAmount > DUST_THRESHOLD);
 };
 
 const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requesterId: string, groupId: string) => {
