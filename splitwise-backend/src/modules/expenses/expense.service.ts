@@ -21,6 +21,9 @@ type ExpenseDocLike = {
   history?: unknown[];
 };
 
+const buildAudience = (actorId: string, ids: string[]) =>
+  [...new Set(ids.map((id) => id.toString()))].filter((id) => id && id !== actorId.toString());
+
 export const createExpense = async (
   body: CreateExpenseInput,
   requesterId: string,
@@ -67,7 +70,12 @@ export const createExpense = async (
 
     for (const detail of computedSplits) {
       if (detail.userId.toString() === paidBy.toString()) continue;
-      const n = await applyMutualNetting(paidBy.toString(), detail.userId.toString(), session);
+      const n = await applyMutualNetting(
+        paidBy.toString(),
+        detail.userId.toString(),
+        groupId ? groupId.toString() : null,
+        session
+      );
       totalNetted = round2(totalNetted + n);
     }
 
@@ -90,7 +98,11 @@ export const createExpense = async (
     'Expense',
     String((expense as { _id?: unknown })._id),
     groupId || null,
-    { amount: round2(amount), description }
+    { amount: round2(amount), description },
+    buildAudience(
+      requesterId,
+      [paidBy.toString(), ...computedSplits.map((detail) => detail.userId.toString())]
+    )
   );
 
   if (totalNetted > DUST_THRESHOLD) {
@@ -203,7 +215,12 @@ export const updateExpense = async (id: string, body: UpdateExpenseInput, reques
 
     for (const detail of computedSplits) {
       if (detail.userId.toString() === paidBy.toString()) continue;
-      const n = await applyMutualNetting(paidBy.toString(), detail.userId.toString(), session);
+      const n = await applyMutualNetting(
+        paidBy.toString(),
+        detail.userId.toString(),
+        groupId ? groupId.toString() : null,
+        session
+      );
       totalNetted = round2(totalNetted + n);
     }
 
@@ -224,9 +241,20 @@ export const updateExpense = async (id: string, body: UpdateExpenseInput, reques
     );
 
     await session.commitTransaction();
-    activityService.logActivity(requesterId, 'expense.updated', 'Expense', id, groupId ? groupId.toString() : null, {
-      amount: round2(amount),
-    });
+    activityService.logActivity(
+      requesterId,
+      'expense.updated',
+      'Expense',
+      id,
+      groupId ? groupId.toString() : null,
+      {
+        amount: round2(amount),
+      },
+      buildAudience(
+        requesterId,
+        [paidBy.toString(), ...computedSplits.map((detail) => detail.userId.toString())]
+      )
+    );
     if (totalNetted > DUST_THRESHOLD) {
       activityService.logActivity(
         requesterId,
@@ -271,7 +299,7 @@ export const deleteExpense = async (id: string, requesterId: string) => {
 
     for (const detail of existingSplitDetails) {
       if (detail.userId.toString() === existingPaidBy) continue;
-      const n = await applyMutualNetting(existingPaidBy, detail.userId.toString(), session);
+      const n = await applyMutualNetting(existingPaidBy, detail.userId.toString(), existingGroupId, session);
       totalNetted = round2(totalNetted + n);
     }
 
@@ -283,7 +311,11 @@ export const deleteExpense = async (id: string, requesterId: string) => {
       'Expense',
       id,
       existingGroupId,
-      {}
+      {},
+      buildAudience(
+        requesterId,
+        [existingPaidBy, ...existingSplitDetails.map((detail) => detail.userId.toString())]
+      )
     );
     if (totalNetted > DUST_THRESHOLD) {
       activityService.logActivity(

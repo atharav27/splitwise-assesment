@@ -101,7 +101,8 @@ const payOverall = async (params: {
         userId: toUser.toString(),
         userName: targetUser?.name || targetUser?.email || 'user',
         overall: true,
-      }
+      },
+      [toUser.toString()]
     );
     return settlement;
   } catch (err) {
@@ -141,10 +142,7 @@ export const pay = async (payload: PayInput, requesterId: string) => {
     throw new AppError('No outstanding debt found between these users', 400);
   }
 
-  const ids = [fromUser.toString(), toUser.toString()].sort();
-  const canonFrom = ids[0];
-  const isCanonical = canonFrom === fromUser.toString();
-  const owedAmount = isCanonical ? ledgerEntry.amount : -ledgerEntry.amount;
+  const owedAmount = signedDebtFromUserToUser(fromUser, toUser, ledgerEntry.amount);
 
   if (owedAmount <= DUST_THRESHOLD) {
     throw new AppError('No outstanding debt — this user does not owe the other', 400);
@@ -192,7 +190,8 @@ export const pay = async (payload: PayInput, requesterId: string) => {
         amount: roundedAmount,
         userId: toUser.toString(),
         userName: targetUser?.name || targetUser?.email || 'user',
-      }
+      },
+      [toUser.toString()]
     );
     return settlement;
   } catch (err) {

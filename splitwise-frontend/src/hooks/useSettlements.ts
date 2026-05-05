@@ -12,11 +12,29 @@ const toArray = (value: any) => {
 };
 
 const getDataOrFallback = (response: any, fallback: any = null) => response?.data?.data ?? fallback;
+const toObject = (value: any) => (value && typeof value === 'object' ? value : null);
 
 export const toListWithCursor = (payload: any) => {
   const items = toArray(payload);
   const nextCursor = payload?.nextCursor ?? null;
   return { items, nextCursor };
+};
+
+export const getOptimizedTransactions = (payload: any) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.transactions)) return payload.transactions;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+export const getTxParty = (tx: any, side: 'from' | 'to') => {
+  const preferred = toObject(tx?.[`${side}User`]);
+  const fallback = toObject(tx?.[side]);
+  const obj = preferred || fallback;
+  const raw = tx?.[`${side}User`] ?? tx?.[side];
+  const id = obj?._id || obj?.id || (typeof raw === 'string' ? raw : null);
+  const name = obj?.name || (typeof raw === 'string' ? raw : 'user');
+  return { id, name };
 };
 
 export const useSettlementGroupsQuery = () =>

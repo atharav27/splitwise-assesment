@@ -26,9 +26,10 @@ export const logActivity = (
   entityType: string,
   entityId: string,
   groupId: string | null = null,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
+  audienceUserIds: string[] = []
 ) => {
-  activityRepo.log({ userId, action, entityType, entityId, groupId, metadata });
+  activityRepo.log({ userId, action, entityType, entityId, groupId, metadata, audienceUserIds });
 };
 
 export const getMyActivity = async (userId: string, query: ActivityQuery) => {

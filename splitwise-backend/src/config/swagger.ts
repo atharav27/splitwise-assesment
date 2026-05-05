@@ -118,6 +118,24 @@ export const swaggerSpec = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      OptimizedSettlementTx: {
+        type: 'object',
+        properties: {
+          from: { $ref: '#/components/schemas/UserRef' },
+          to: { $ref: '#/components/schemas/UserRef' },
+          amount: { type: 'number' },
+        },
+      },
+      OptimizedSettlementResponse: {
+        type: 'object',
+        properties: {
+          transactions: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/OptimizedSettlementTx' },
+          },
+          count: { type: 'integer' },
+        },
+      },
       ActivityRef: {
         type: 'object',
         properties: {
@@ -430,6 +448,7 @@ export const swaggerSpec = {
                   toUser: { type: 'string' },
                   amount: { type: 'number' },
                   groupId: { type: 'string', nullable: true },
+                  overall: { type: 'boolean', default: false },
                   note: { type: 'string' },
                 },
               },
@@ -470,7 +489,23 @@ export const swaggerSpec = {
         summary: 'Optimize group settlements',
         security: bearerAuthSecurity,
         parameters: [{ name: 'id', ...objectIdParam }],
-        responses: { 200: { description: 'Optimized settlements computed' } },
+        responses: {
+          200: {
+            description: 'Optimized settlements computed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/OptimizedSettlementResponse' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     '/activity': {

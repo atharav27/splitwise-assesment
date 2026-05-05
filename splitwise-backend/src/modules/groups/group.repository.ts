@@ -1,4 +1,6 @@
-const { Group } = require('../../models');
+import { DUST_THRESHOLD } from '../../utils/constants';
+
+const { Group, Ledger } = require('../../models');
 
 const MEMBER_POPULATE = { path: 'members', select: '_id name email avatar' };
 const CREATOR_POPULATE = { path: 'createdBy', select: '_id name email' };
@@ -47,4 +49,13 @@ export const isActiveGroupMember = async (groupId: string, userId: string): Prom
   const memberIds = await findActiveGroupMemberIds(groupId);
   if (!memberIds) return null;
   return memberIds.some((id) => id.toString() === userId.toString());
+};
+
+export const hasOutstandingForMemberInGroup = async (groupId: string, userId: string): Promise<boolean> => {
+  const outstanding = await Ledger.exists({
+    groupId,
+    $or: [{ fromUser: userId }, { toUser: userId }],
+    $and: [{ $or: [{ amount: { $gt: DUST_THRESHOLD } }, { amount: { $lt: -DUST_THRESHOLD } }] }],
+  });
+  return Boolean(outstanding);
 };

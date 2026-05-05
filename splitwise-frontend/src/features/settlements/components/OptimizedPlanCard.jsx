@@ -1,19 +1,13 @@
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
+import { getOptimizedTransactions } from '../../../hooks/useSettlements';
 import { TransactionRow } from './TransactionRow';
-
-const normalizeOptimized = (raw) => {
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.data)) return raw.data;
-  if (Array.isArray(raw?.transactions)) return raw.transactions;
-  return [];
-};
 
 export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEntry }) => {
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
-  const optimized = normalizeOptimized(data);
+  const optimized = getOptimizedTransactions(data);
   if (!optimized.length) {
     return (
       <Card>

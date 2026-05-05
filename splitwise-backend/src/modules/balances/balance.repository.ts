@@ -17,7 +17,7 @@ export const findUserLedgerEntries = (userId: string) =>
 export const findGroupLedgerEntries = (groupId: string) =>
   Ledger.find({
     groupId,
-    amount: { $gt: DUST_THRESHOLD },
+    $or: [{ amount: { $gt: DUST_THRESHOLD } }, { amount: { $lt: -DUST_THRESHOLD } }],
   })
     .populate('fromUser', '_id name email avatar')
     .populate('toUser', '_id name email avatar');

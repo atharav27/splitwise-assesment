@@ -7,13 +7,19 @@ type ActivityLogInput = {
   entityType: string;
   entityId: string;
   groupId?: string | null;
+  audienceUserIds?: string[];
   metadata?: Record<string, unknown>;
 };
 
 export const log = (data: ActivityLogInput) => {
+  const uniqueAudienceUserIds = [...new Set((data.audienceUserIds || []).map((id) => id.toString()))].filter(Boolean);
+  const payload = {
+    ...data,
+    audienceUserIds: uniqueAudienceUserIds,
+  };
   setImmediate(async () => {
     try {
-      await Activity.create(data);
+      await Activity.create(payload);
     } catch (err) {
       logger.error({ err }, 'Activity log write failed');
     }
@@ -22,7 +28,7 @@ export const log = (data: ActivityLogInput) => {
 
 export const findByUser = (userId: string, cursor: string | undefined, limit: number) => {
   const filter: Record<string, unknown> = {
-    userId,
+    $or: [{ userId }, { audienceUserIds: userId }],
     ...(cursor ? { _id: { $lt: cursor } } : {}),
   };
 

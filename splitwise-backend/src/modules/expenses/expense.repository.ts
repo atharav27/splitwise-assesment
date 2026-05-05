@@ -52,9 +52,14 @@ export const upsertLedger = async ({
   );
 };
 
-export const findAllLedgerRowsForPair = (userA: string, userB: string, session: Session) => {
+export const findAllLedgerRowsForPairInScope = (
+  userA: string,
+  userB: string,
+  groupId: string | null,
+  session: Session
+) => {
   const [canonFrom, canonTo] = [userA.toString(), userB.toString()].sort();
-  return Ledger.find({ fromUser: canonFrom, toUser: canonTo })
+  return Ledger.find({ fromUser: canonFrom, toUser: canonTo, groupId: groupId || null })
     .session(session)
     .sort({ lastUpdatedAt: 1, groupId: 1, _id: 1 });
 };

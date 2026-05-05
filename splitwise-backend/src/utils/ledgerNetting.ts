@@ -8,16 +8,17 @@ const { Ledger } = require('../models');
 type Session = mongoose.ClientSession;
 
 /**
- * Cancels mutual debt between two users across ledger scopes (FIFO by row order).
+ * Cancels mutual debt between two users within a single scope (FIFO by row order).
  * Canonical row (fromUser, toUser): amount > 0 means fromUser owes toUser; amount < 0 means reverse.
  * Returns total amount cancelled (0 if nothing to net).
  */
 export const applyMutualNetting = async (
   userA: string,
   userB: string,
+  scopeGroupId: string | null,
   session: Session
 ): Promise<number> => {
-  const rows = await expenseRepo.findAllLedgerRowsForPair(userA, userB, session);
+  const rows = await expenseRepo.findAllLedgerRowsForPairInScope(userA, userB, scopeGroupId, session);
   const positiveRows = rows.filter((r: { amount: number }) => r.amount > DUST_THRESHOLD);
   const negativeRows = rows.filter((r: { amount: number }) => r.amount < -DUST_THRESHOLD);
 

@@ -26,7 +26,7 @@ export const createGroup = async (payload: CreateGroupInput, creatorId: string) 
   });
   activityService.logActivity(creatorId, 'group.created', 'Group', group._id.toString(), group._id.toString(), {
     name: payload.name,
-  });
+  }, uniqueAudience(creatorId, memberSet));
 
   return groupRepo.findById(group._id.toString());
 };
@@ -53,7 +53,7 @@ export const addMember = async (groupId: string, targetUserId: string, requester
   const updatedGroup = await groupRepo.addMember(groupId, targetUserId);
   activityService.logActivity(requesterId, 'member.added', 'Group', groupId, groupId, {
     userId: targetUserId,
-  });
+  }, uniqueAudience(requesterId, [targetUserId]));
   return updatedGroup;
 };
 
@@ -70,10 +70,15 @@ export const removeMember = async (groupId: string, targetUserId: string, reques
     throw new AppError('User is not a group member', 400);
   }
 
+  const hasOutstandingBalance = await groupRepo.hasOutstandingForMemberInGroup(groupId, targetUserId);
+  if (hasOutstandingBalance) {
+    throw new AppError('Cannot remove member with outstanding balances in this group', 400);
+  }
+
   const updatedGroup = await groupRepo.removeMember(groupId, targetUserId);
   activityService.logActivity(requesterId, 'member.removed', 'Group', groupId, groupId, {
     userId: targetUserId,
-  });
+  }, uniqueAudience(requesterId, [targetUserId]));
   return updatedGroup; 
 };
 
@@ -110,3 +115,9 @@ const assertUsersExist = async (userIds: string[]) => {
     throw new AppError(`Users not found: ${missing.join(', ')}`, 400);
   }
 };
+
+function uniqueAudience(actorId: string, userIds: string[]) {
+  return [...new Set(userIds.map((id) => id.toString()))].filter(
+    (id) => id && id !== actorId.toString()
+  );
+}

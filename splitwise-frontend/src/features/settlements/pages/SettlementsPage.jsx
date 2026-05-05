@@ -7,6 +7,8 @@ import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
+  getOptimizedTransactions,
+  getTxParty,
   useGroupSettlementsQuery,
   useMySettlementsQuery,
   useOptimizedSettlementsQuery,
@@ -65,28 +67,23 @@ const SettlementsPage = () => {
   }, [optimizedQuery.isError, optimizedQuery.error]);
 
   const optimizedList = useMemo(() => {
-    if (Array.isArray(optimizedQuery.data)) return optimizedQuery.data;
-    if (Array.isArray(optimizedQuery.data?.data)) return optimizedQuery.data.data;
-    if (Array.isArray(optimizedQuery.data?.transactions)) return optimizedQuery.data.transactions;
-    return [];
+    return getOptimizedTransactions(optimizedQuery.data);
   }, [optimizedQuery.data]);
 
   const selectedPaymentEntry = useMemo(() => {
     const tx = optimizedList[0];
     if (!tx) return null;
 
-    const txFromId = tx.fromUser?._id || tx.fromUser?.id || tx.fromUser;
-    const txToId = tx.toUser?._id || tx.toUser?.id || tx.toUser;
-    const txFromName = tx.fromUser?.name || tx.from || 'user';
-    const txToName = tx.toUser?.name || tx.to || 'user';
+    const fromParty = getTxParty(tx, 'from');
+    const toParty = getTxParty(tx, 'to');
     const currentUserId = user?._id || user?.id;
 
     if (!currentUserId) return null;
-    if (txFromId === currentUserId) {
-      return { userId: txToId, name: txToName, amount: Number(tx.amount || 0), groupId };
+    if (fromParty.id === currentUserId) {
+      return { userId: toParty.id, name: toParty.name, amount: Number(tx.amount || 0), groupId };
     }
-    if (txToId === currentUserId) {
-      return { userId: txFromId, name: txFromName, amount: Number(tx.amount || 0), groupId };
+    if (toParty.id === currentUserId) {
+      return { userId: fromParty.id, name: fromParty.name, amount: Number(tx.amount || 0), groupId };
     }
     return null;
   }, [optimizedList, user, groupId]);

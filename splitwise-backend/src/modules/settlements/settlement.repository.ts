@@ -57,7 +57,10 @@ export const getAllLedgerRowsForPair = (fromUserId: string, toUserId: string) =>
 };
 
 export const getLedgerByGroup = (groupId: string) =>
-  Ledger.find({ groupId, amount: { $gt: DUST_THRESHOLD } });
+  Ledger.find({
+    groupId,
+    $or: [{ amount: { $gt: DUST_THRESHOLD } }, { amount: { $lt: -DUST_THRESHOLD } }],
+  });
 
 export const findByUser = (userId: string, cursor: string | undefined, limit: number) => {
   const filter: Record<string, unknown> = {

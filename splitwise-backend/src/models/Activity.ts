@@ -55,6 +55,12 @@ const activitySchema = new mongoose.Schema(
       ref: 'Group',
       default: null,
     },
+    // Recipients that should see this item in "My Activity" even if not the actor.
+    audienceUserIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
     // Flexible payload — e.g. { amount: 500, description: 'Dinner' }
     metadata: {
       type: mongoose.Schema.Types.Mixed,
@@ -83,6 +89,7 @@ activitySchema.index(
 
 // Global feed for a user (e.g. "your recent activity")
 activitySchema.index({ userId: 1, createdAt: -1 });
+activitySchema.index({ audienceUserIds: 1, createdAt: -1 });
 
 // Group feed (e.g. "what happened in this group")
 activitySchema.index({ groupId: 1, createdAt: -1 });

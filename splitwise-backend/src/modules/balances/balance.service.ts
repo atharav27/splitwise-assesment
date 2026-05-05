@@ -119,7 +119,7 @@ const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requ
       return {
         userId: id,
         amount: absNet,
-        direction: net > 0 ? ('owed' as const) : ('owe' as const),
+        direction: net > 0 ? ('owe' as const) : ('owed' as const),
         groupId,
       };
     })
