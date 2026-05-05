@@ -2,8 +2,11 @@ import { UserAvatar } from '../../../components/shared';
 import { Input } from '../../../components/ui/input';
 import { formatCurrency } from '../../../lib/utils';
 
+const isSameUserId = (a, b) => Boolean(a && b && String(a) === String(b));
+
 export const ParticipantSplitRow = ({
   user,
+  currentUserId,
   splitType,
   amount,
   percentage,
@@ -14,11 +17,12 @@ export const ParticipantSplitRow = ({
   currency = 'INR',
   inputsDisabled = false,
 }) => {
+  const displayName = isSameUserId(user?._id, currentUserId) ? 'You' : user?.name || user?.email;
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-md border p-2">
       <div className="flex min-w-0 items-center gap-2">
         <UserAvatar user={user} size="sm" />
-        <p className="truncate text-sm">{user?.name || user?.email}</p>
+        <p className="truncate text-sm">{displayName}</p>
       </div>
 
       {splitType === 'equal' ? (

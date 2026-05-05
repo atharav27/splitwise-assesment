@@ -4,17 +4,31 @@ import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
 
-export const ParticipantSelector = ({ users = [], selectedIds = [], onChange, disabled = false }) => {
+const isSameUserId = (a, b) => Boolean(a && b && String(a) === String(b));
+
+export const ParticipantSelector = ({
+  users = [],
+  currentUserId,
+  selectedIds = [],
+  onChange,
+  disabled = false,
+}) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  const displayLabel = (member) =>
+    isSameUserId(member?._id, currentUserId) ? 'You' : member?.name || member?.email || '';
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim();
     if (!term) return users;
-    return users.filter((user) =>
-      `${user.name || ''} ${user.email || ''}`.toLowerCase().includes(term)
-    );
-  }, [search, users]);
+    return users.filter((member) => {
+      const haystack = isSameUserId(member?._id, currentUserId)
+        ? `you ${member.name || ''} ${member.email || ''}`.toLowerCase()
+        : `${member.name || ''} ${member.email || ''}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [search, users, currentUserId]);
 
   const toggle = (id) => {
     if (selectedIds.includes(id)) onChange(selectedIds.filter((value) => value !== id));
@@ -38,15 +52,15 @@ export const ParticipantSelector = ({ users = [], selectedIds = [], onChange, di
             placeholder="Search users..."
           />
           <div className="max-h-56 space-y-1 overflow-y-auto">
-            {filtered.map((user) => (
+            {filtered.map((member) => (
               <button
-                key={user._id}
+                key={member._id}
                 type="button"
-                onClick={() => toggle(user._id)}
+                onClick={() => toggle(member._id)}
                 className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
               >
-                <span>{user.name || user.email}</span>
-                {selectedIds.includes(user._id) ? <Check className="h-4 w-4" /> : null}
+                <span>{displayLabel(member)}</span>
+                {selectedIds.includes(member._id) ? <Check className="h-4 w-4" /> : null}
               </button>
             ))}
           </div>
@@ -54,10 +68,10 @@ export const ParticipantSelector = ({ users = [], selectedIds = [], onChange, di
       </Popover>
       <div className="flex flex-wrap gap-2">
         {selectedIds.map((id) => {
-          const user = users.find((item) => item._id === id);
+          const member = users.find((item) => item._id === id);
           return (
             <Badge key={id} variant="outline" className="gap-1">
-              {user?.name || user?.email || id}
+              {member ? displayLabel(member) : id}
               <button type="button" onClick={() => toggle(id)}>
                 <X className="h-3 w-3" />
               </button>

@@ -46,11 +46,14 @@ const toGroupIdValue = (group) => {
   return 'none';
 };
 
+const isSameUserId = (a, b) => Boolean(a && b && String(a) === String(b));
+
 const CreateEditExpensePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const currentUserId = user?._id || user?.id;
   const isEdit = Boolean(id);
 
   const [apiError, setApiError] = useState('');
@@ -102,14 +105,16 @@ const CreateEditExpensePage = () => {
   }, [selectedGroupId, groupMembers, users]);
 
   const paidByOptions = useMemo(() => {
+    const labelFor = (member) =>
+      isSameUserId(member?._id, currentUserId) ? 'You' : member?.name || member?.email || '';
     if (selectedGroupId && selectedGroupId !== 'none') {
-      return groupMembers.map((member) => ({ value: member._id, label: member.name }));
+      return groupMembers.map((member) => ({ value: member._id, label: labelFor(member) }));
     }
     const selected = users.filter((member) => participantIds.includes(member._id));
     const combined = [user, ...selected].filter(Boolean);
     const uniq = Array.from(new Map(combined.map((item) => [item._id, item])).values());
-    return uniq.map((member) => ({ value: member._id, label: member.name || member.email }));
-  }, [selectedGroupId, groupMembers, users, participantIds, user]);
+    return uniq.map((member) => ({ value: member._id, label: labelFor(member) }));
+  }, [selectedGroupId, groupMembers, users, participantIds, user, currentUserId]);
 
   useEffect(() => {
     if (!paidByOptions.find((option) => option.value === form.getValues('paidBy')) && paidByOptions[0]) {
@@ -293,6 +298,7 @@ const CreateEditExpensePage = () => {
                 <p className="text-sm font-medium">Participants</p>
                 <ParticipantSelector
                   users={participantPool}
+                  currentUserId={currentUserId}
                   selectedIds={participantIds}
                   onChange={(ids) => {
                     setParticipantIds(ids);
@@ -315,6 +321,7 @@ const CreateEditExpensePage = () => {
                       <ParticipantSplitRow
                         key={detail.userId}
                         user={participant}
+                        currentUserId={currentUserId}
                         splitType={splitType}
                         amount={detail.amount}
                         percentage={detail.percentage}
