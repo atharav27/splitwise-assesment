@@ -20,7 +20,7 @@ const BalancesPage = () => {
 
   const globalQuery = useGlobalBalancesQuery();
   const groupsQuery = useBalanceGroupsQuery();
-  const groupBalancesQuery = useGroupedBalancesQuery(groupsQuery.data || []);
+  const groupBalancesQuery = useGroupedBalancesQuery(groupsQuery.data || [], globalQuery.data || []);
 
   const balances = useMemo(() => globalQuery.data || [], [globalQuery.data]);
 

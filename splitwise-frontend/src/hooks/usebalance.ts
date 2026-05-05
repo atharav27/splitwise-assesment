@@ -10,6 +10,7 @@ const toArray = (value: any) => {
 };
 
 const getDataOrFallback = (response: any) => response?.data?.data;
+const DUST_THRESHOLD = 0.01;
 const normalizeBalanceEntry = (entry: any, fallbackUser: any = null) => {
   const user = entry?.user || fallbackUser || null;
   return {
@@ -40,22 +41,41 @@ export const useBalanceGroupsQuery = () =>
   });
 
 export const useGroupedBalancesQuery = (
-  groups: Array<{ _id: string; members?: Array<{ _id: string; name?: string; email?: string; avatar?: string }> }> = []
+  groups: Array<{ _id: string; members?: Array<{ _id: string; name?: string; email?: string; avatar?: string }> }> = [],
+  globalBalances: Array<{ userId?: string; amount?: number; direction?: 'owe' | 'owed' }> = []
 ) =>
   useQuery({
-    queryKey: ['balances', 'grouped', groups.map((group) => group._id).join(',')],
+    queryKey: [
+      'balances',
+      'grouped',
+      groups.map((group) => group._id).join(','),
+      globalBalances
+        .map((entry) => `${entry?.userId || ''}:${entry?.direction || ''}:${Number(entry?.amount || 0).toFixed(2)}`)
+        .join('|'),
+    ],
     enabled: Boolean(groups.length),
     queryFn: async () => {
+      const globalOutstandingMap = new Map(
+        (globalBalances || [])
+          .filter((entry) => Number(entry?.amount || 0) > DUST_THRESHOLD && entry?.userId)
+          .map((entry) => [String(entry.userId), entry.direction])
+      );
       const pairs = await Promise.all(
         groups.map(async (group) => {
           const memberMap = new Map((group?.members || []).map((member: any) => [member?._id, member]));
-          const balances = await balancesAPI
+          const balances = (await balancesAPI
             .getByGroup(group._id)
             .then((response) =>
               toArray(getDataOrFallback(response)).map((entry) =>
                 normalizeBalanceEntry(entry, memberMap.get(entry?.userId))
               )
-            );
+            ))
+            .filter((entry) => {
+              if (!entry?.userId) return false;
+              const globalDirection = globalOutstandingMap.get(String(entry.userId));
+              if (!globalDirection) return false;
+              return globalDirection === entry.direction;
+            });
           return { group, balances };
         })
       );

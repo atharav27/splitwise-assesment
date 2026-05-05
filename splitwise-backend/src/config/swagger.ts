@@ -426,6 +426,8 @@ export const swaggerSpec = {
       get: {
         tags: ['Balances'],
         summary: 'Get group balances',
+        description:
+          'Returns informational group-scope rows constrained by overall pair-net truth. If a counterparty is fully settled overall, they are omitted from this group response.',
         security: bearerAuthSecurity,
         parameters: [{ name: 'id', ...objectIdParam }],
         responses: { 200: { description: 'Group balances fetched' } },

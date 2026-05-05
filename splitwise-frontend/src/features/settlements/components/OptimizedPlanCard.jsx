@@ -1,10 +1,9 @@
-import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { getOptimizedTransactions } from '../../../hooks/useSettlements';
 import { TransactionRow } from './TransactionRow';
 
-export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEntry, canRecordPayment }) => {
+export const OptimizedPlanCard = ({ data, isLoading }) => {
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
   const optimized = getOptimizedTransactions(data);
@@ -26,17 +25,20 @@ export const OptimizedPlanCard = ({ data, isLoading, onRecordPayment, selectedEn
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Settle in {optimizedCount} transactions (optimal)</CardTitle>
-        <CardDescription>vs {baselineCount} transactions without optimization</CardDescription>
+        <CardTitle>Suggested scope breakdown ({optimizedCount} transactions)</CardTitle>
+        <CardDescription>
+          This is informational for the selected group. Settle from All Balances.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {optimized.map((tx, idx) => (
           <TransactionRow key={`${tx.from}-${tx.to}-${idx}`} tx={tx} />
         ))}
-
-        <Button className="w-full" onClick={onRecordPayment} disabled={!selectedEntry || !canRecordPayment}>
-          {canRecordPayment ? 'Record a Payment' : 'Waiting for payment'}
-        </Button>
+        {baselineCount > optimizedCount ? (
+          <p className="text-xs text-muted-foreground">
+            Optimization reduces estimated transfers from {baselineCount} to {optimizedCount}.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

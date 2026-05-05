@@ -30,8 +30,14 @@ export const getGroupBalances = async (groupId: string, userId: string) => {
   const isMember = memberIds.some((m) => m.toString() === userId.toString());
   if (!isMember) throw new AppError('Access denied — not a group member', 403);
 
-  const entries = (await balanceRepo.findGroupLedgerEntries(groupId)) as LedgerEntry[];
-  return buildGroupBalanceList(entries, memberIds, userId, groupId);
+  const [groupEntries, globalEntries] = (await Promise.all([
+    balanceRepo.findGroupLedgerEntries(groupId),
+    balanceRepo.findUserLedgerEntries(userId),
+  ])) as [LedgerEntry[], LedgerEntry[]];
+
+  const groupRows = buildGroupBalanceList(groupEntries, memberIds, userId, groupId);
+  const globalRows = buildBalanceList(globalEntries, userId);
+  return filterGroupRowsByGlobalTruth(groupRows, globalRows);
 };
 
 type BreakdownLine = {
@@ -95,7 +101,40 @@ const buildBalanceList = (entries: LedgerEntry[], userId: string) => {
     .filter((b) => b.netAmount > DUST_THRESHOLD);
 };
 
-const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requesterId: string, groupId: string) => {
+type GroupBalanceRow = {
+  userId: string;
+  amount: number;
+  direction: 'owe' | 'owed';
+  groupId: string;
+};
+
+type GlobalBalanceRow = {
+  user?: PopulatedUser;
+  netAmount?: number;
+  direction?: 'owe' | 'owed';
+};
+
+export const filterGroupRowsByGlobalTruth = (
+  groupRows: GroupBalanceRow[],
+  globalRows: GlobalBalanceRow[]
+) => {
+  const globalByUserId = new Map(
+    globalRows.map((row) => [row.user?._id?.toString?.() || '', row])
+  );
+
+  return groupRows.filter((row) => {
+    const global = globalByUserId.get(row.userId);
+    if (!global || Number(global.netAmount || 0) <= DUST_THRESHOLD) return false;
+    return global.direction === row.direction;
+  });
+};
+
+const buildGroupBalanceList = (
+  entries: LedgerEntry[],
+  memberIds: string[],
+  requesterId: string,
+  groupId: string
+): GroupBalanceRow[] => {
   const netMap: Record<string, number> = {};
   memberIds.forEach((id) => {
     netMap[id] = 0;
@@ -123,5 +162,5 @@ const buildGroupBalanceList = (entries: LedgerEntry[], memberIds: string[], requ
         groupId,
       };
     })
-    .filter(Boolean);
+    .filter((row): row is GroupBalanceRow => Boolean(row));
 };

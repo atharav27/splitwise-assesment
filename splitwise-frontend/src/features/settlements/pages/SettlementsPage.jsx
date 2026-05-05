@@ -1,5 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { showErrorToast } from '../../../lib/toast';
 import { AppShell, EmptyState, PageHeader, SkeletonList } from '../../../components/shared';
@@ -7,19 +6,15 @@ import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
-  getOptimizedTransactions,
-  getTxParty,
   useGroupSettlementsQuery,
   useMySettlementsQuery,
   useOptimizedSettlementsQuery,
   useSettlementGroupsQuery,
 } from '../../../hooks/useSettlements';
-import { SettleUpDialog } from '../../balances/components/SettleUpDialog';
 import { OptimizedPlanCard } from '../components/OptimizedPlanCard';
 import { SettlementCard } from '../components/SettlementCard';
 
 const SettlementsPage = () => {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const [tab, setTab] = useState('mine');
@@ -30,7 +25,6 @@ const SettlementsPage = () => {
   const [groupItems, setGroupItems] = useState([]);
   const [mineNextCursor, setMineNextCursor] = useState(null);
   const [groupNextCursor, setGroupNextCursor] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const groupsQuery = useSettlementGroupsQuery();
 
@@ -65,45 +59,6 @@ const SettlementsPage = () => {
     if (!optimizedQuery.isError) return;
     showErrorToast(optimizedQuery.error);
   }, [optimizedQuery.isError, optimizedQuery.error]);
-
-  const optimizedList = useMemo(() => {
-    return getOptimizedTransactions(optimizedQuery.data);
-  }, [optimizedQuery.data]);
-
-  const topTransactionRole = useMemo(() => {
-    const tx = optimizedList[0];
-    if (!tx) return 'none';
-    const fromParty = getTxParty(tx, 'from');
-    const toParty = getTxParty(tx, 'to');
-    const currentUserId = user?._id || user?.id;
-    if (!currentUserId) return 'none';
-    if (fromParty.id === currentUserId) return 'payer';
-    if (toParty.id === currentUserId) return 'receiver';
-    return 'none';
-  }, [optimizedList, user]);
-
-  const selectedPaymentEntry = useMemo(() => {
-    const tx = optimizedList[0];
-    if (!tx) return null;
-
-    const fromParty = getTxParty(tx, 'from');
-    const toParty = getTxParty(tx, 'to');
-    const currentUserId = user?._id || user?.id;
-
-    if (!currentUserId) return null;
-    if (fromParty.id === currentUserId) {
-      return { userId: toParty.id, name: toParty.name, amount: Number(tx.amount || 0), groupId };
-    }
-    if (toParty.id === currentUserId) return null;
-    return null;
-  }, [optimizedList, user, groupId]);
-
-  const refreshAfterPayment = () => {
-    mineQuery.refetch();
-    groupHistoryQuery.refetch();
-    optimizedQuery.refetch();
-    queryClient.invalidateQueries({ queryKey: ['balances'] });
-  };
 
   return (
     <AppShell>
@@ -198,22 +153,11 @@ const SettlementsPage = () => {
               <OptimizedPlanCard
                 data={optimizedQuery.data}
                 isLoading={optimizedQuery.isLoading}
-                selectedEntry={selectedPaymentEntry}
-                canRecordPayment={topTransactionRole === 'payer'}
-                onRecordPayment={() => setDialogOpen(true)}
               />
             </div>
           )}
         </TabsContent>
       </Tabs>
-
-      <SettleUpDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        entry={selectedPaymentEntry}
-        currentUserId={user?._id || user?.id}
-        onSuccess={refreshAfterPayment}
-      />
     </AppShell>
   );
 };
